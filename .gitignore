@@ -1,0 +1,62 @@
+# Environment files
+.env
+*.env
+!.env.example
+
+# Docker volumes
+**/volumes/
+**/data/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.swp
+*~
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Backup files
+*.bak
+backup/
+
+# Secrets
+secrets/
+*.key
+*.pem
+*.crt
+!example.crt
+
+# Grafana
+grafana/data/
+grafana/logs/
+
+# Loki
+loki/data/
+loki/chunks/
+
+# Mimir
+mimir/data/
+
+# OpenWrt backups
+*.tar.gz
+openwrt-backup-*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Node
+node_modules/
+npm-debug.log
+
+# OS
+Thumbs.db
