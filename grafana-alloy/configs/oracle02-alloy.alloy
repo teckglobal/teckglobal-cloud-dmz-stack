@@ -1,0 +1,229 @@
+// =============================================================================
+// Grafana Alloy Configuration - Oracle02 (Application Server)
+// =============================================================================
+// Purpose: Collect logs and metrics, send to centralized Oracle01
+// Sends: Logs → Loki-Oracle01, Metrics → Mimir-Oracle01
+// Server: oracle02 (10.0.206.20) - 12GB RAM - Web Hosting Server
+// =============================================================================
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// =============================================================================
+// REMOTE ENDPOINTS (Oracle01 - Monitoring Hub)
+// =============================================================================
+
+loki.write "loki_central" {
+  endpoint {
+    url = "http://10.0.206.10:3100/loki/api/v1/push"
+  }
+}
+
+prometheus.remote_write "mimir_central" {
+  endpoint {
+    url = "http://10.0.206.10:9009/api/v1/push"
+  }
+}
+
+// =============================================================================
+// LOG COLLECTION - ORACLE02
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Syslog Collection
+// -----------------------------------------------------------------------------
+loki.source.file "syslog" {
+  targets = [
+    {__path__ = "/var/log/syslog", job = "syslog", host = "oracle02"},
+  ]
+  forward_to = [loki.process.syslog.receiver]
+}
+
+loki.process "syslog" {
+  stage.static_labels {
+    values = {
+      job  = "syslog",
+      host = "oracle02",
+    }
+  }
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Nginx Logs - REDUCED CARDINALITY!
+// -----------------------------------------------------------------------------
+// This is the KEY FIX for "maximum active stream limit exceeded" errors!
+// Before: Created one stream PER LOG FILE (10+ websites = 10+ streams)
+// After: Creates streams by job/host/website only (~10-20 streams total)
+
+loki.source.file "nginx_access" {
+  targets = [
+    {
+      __path__ = "/var/www/html/*/logs/access.log",
+      job      = "nginx_access",
+      host     = "oracle02",
+    },
+  ]
+  forward_to = [loki.process.nginx_access.receiver]
+}
+
+loki.process "nginx_access" {
+  // Parse nginx combined log format
+  stage.regex {
+    expression = "^(?P<remote_addr>[\\w\\.\\:]+) - (?P<remote_user>[^ ]*) \\[(?P<time_local>[^\\]]*)\\] \"(?P<method>\\S+) (?P<request_uri>\\S+) (?P<http_version>\\S+)\" (?P<status>\\d+) (?P<body_bytes_sent>\\d+) \"(?P<http_referer>[^\"]*)\" \"(?P<http_user_agent>[^\"]*)\""
+  }
+
+  // Extract website name from file path
+  stage.regex {
+    source     = "filename"
+    expression = "/var/www/html/(?P<website>[^/]+)/logs/"
+  }
+
+  // CRITICAL: Only use LOW-CARDINALITY labels!
+  stage.labels {
+    values = {
+      website = "website",  // Only ~10 unique values
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      job  = "nginx_access",
+      host = "oracle02",
+    }
+  }
+
+  // DON'T add these as labels (they're high-cardinality):
+  // - remote_addr (thousands of IPs)
+  // - status (100+ status codes)
+  // - request_uri (infinite URLs)
+  // - http_user_agent (thousands of agents)
+  //
+  // Instead, query them with LogQL:
+  // {job="nginx_access"} | json | remote_addr="1.2.3.4" | status="404"
+
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Nginx Error Logs
+// -----------------------------------------------------------------------------
+loki.source.file "nginx_error" {
+  targets = [
+    {
+      __path__ = "/var/www/html/*/logs/error.log",
+      job      = "nginx_error",
+      host     = "oracle02",
+    },
+  ]
+  forward_to = [loki.process.nginx_error.receiver]
+}
+
+loki.process "nginx_error" {
+  // Extract website name
+  stage.regex {
+    source     = "filename"
+    expression = "/var/www/html/(?P<website>[^/]+)/logs/"
+  }
+
+  stage.labels {
+    values = {
+      website = "website",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      job  = "nginx_error",
+      host = "oracle02",
+    }
+  }
+
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Suricata IDS Logs - FIXED CARDINALITY!
+// -----------------------------------------------------------------------------
+// This was creating 10,000+ streams due to high-cardinality labels!
+// Before: src_ip, dest_port, geoip_city, geoip_lat/long, signature as labels
+// After: Only event_type and proto as labels (~20-50 streams total)
+
+loki.source.file "suricata" {
+  targets = [
+    {
+      __path__ = "/var/log/suricata/eve.json",
+      job      = "suricata",
+      host     = "oracle02",
+    },
+  ]
+  forward_to = [loki.process.suricata.receiver]
+}
+
+loki.process "suricata" {
+  // Parse JSON log format
+  stage.json {
+    expressions = {
+      event_type = "event_type",
+      proto      = "proto",
+      src_ip     = "src_ip",
+      dest_ip    = "dest_ip",
+      dest_port  = "dest_port",
+    }
+  }
+
+  // CRITICAL: Only use LOW-CARDINALITY labels!
+  stage.labels {
+    values = {
+      event_type = "event_type",  // ~10 unique values (flow, alert, tls, dns, http)
+      proto      = "proto",       // ~5 unique values (TCP, UDP, ICMP, etc.)
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      job  = "suricata",
+      host = "oracle02",
+    }
+  }
+
+  // DON'T add these as labels (they're high-cardinality):
+  // - src_ip (thousands of unique IPs per day)
+  // - dest_ip (hundreds of destinations)
+  // - dest_port (hundreds of ports)
+  // - geoip_city_name (thousands of cities)
+  // - geoip_location_latitude/longitude (infinite precision)
+  // - signature (hundreds of signatures)
+  // - signature_id (hundreds of IDs)
+  //
+  // Instead, use LogQL queries:
+  // {job="suricata", event_type="alert"} | json | src_ip="45.225.192.88"
+  // {job="suricata"} | json | geoip_city_name="London"
+  // {job="suricata"} | json | signature=~".*SQL.*"
+
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// =============================================================================
+// METRICS COLLECTION - ORACLE02
+// =============================================================================
+// Currently, Oracle01's Alloy scrapes Oracle02's metrics remotely.
+// If you want local collection + forwarding, uncomment below:
+
+/*
+prometheus.scrape "node_exporter" {
+  targets = [
+    {"__address__" = "localhost:9100", "instance" = "oracle02"},
+  ]
+  forward_to = [prometheus.remote_write.mimir_central.receiver]
+}
+
+prometheus.scrape "cadvisor" {
+  targets = [
+    {"__address__" = "localhost:9200", "instance" = "oracle02"},
+  ]
+  forward_to = [prometheus.remote_write.mimir_central.receiver]
+}
+*/

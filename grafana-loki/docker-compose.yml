@@ -1,0 +1,72 @@
+# =============================================================================
+# Grafana Loki - Oracle01 (Centralized Log Aggregation)
+# =============================================================================
+# Purpose: Store and query logs from entire infrastructure
+# Server: oracle01 (10.0.206.10) - 10GB RAM
+# Receives from: Both Alloy agents (Oracle01 + Oracle02)
+# =============================================================================
+
+services:
+  loki-oracle01:
+    image: grafana/loki:latest
+    container_name: loki-oracle01
+    restart: unless-stopped
+
+    # Configuration
+    volumes:
+      - ./configs/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+
+    # Ports
+    ports:
+      - "3100:3100"      # HTTP API
+      - "9095-9096:9095-9096"  # gRPC
+
+    # Command
+    command: -config.file=/etc/loki/loki-config.yaml
+
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (adjust based on your server)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 4G
+    #     reservations:
+    #       cpus: '1.0'
+    #       memory: 2G
+
+volumes:
+  loki_data:
+    driver: local
+
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# 1. Deploy BEFORE Alloy agents (Alloy needs Loki to send logs to)
+# 2. Verify Loki is ready:
+#      curl http://localhost:3100/ready
+# 3. Check Loki metrics:
+#      curl http://localhost:3100/metrics
+# 4. Monitor stream count:
+#      curl -s "http://localhost:3100/loki/api/v1/streams" | jq '. | length'
+# 5. After migration, if stream count is low (< 100), reduce limits in config
+#
+# Deploy:
+#   docker-compose -f docker-compose.yml up -d
+#
+# Verify:
+#   docker logs -f loki-oracle01
+#   curl http://localhost:3100/ready
+#
+# Query logs:
+#   curl -G -s "http://localhost:3100/loki/api/v1/query" \
+#     --data-urlencode 'query={job="syslog"}' | jq
+# =============================================================================

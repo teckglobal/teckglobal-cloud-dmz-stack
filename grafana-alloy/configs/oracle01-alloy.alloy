@@ -1,0 +1,213 @@
+// =============================================================================
+// Grafana Alloy Configuration - Oracle01 (Monitoring Hub)
+// =============================================================================
+// Purpose: Unified observability agent for logs AND metrics
+// Sends: Logs → Loki-Oracle01, Metrics → Mimir-Oracle01
+// Server: oracle01 (10.0.206.10) - 10GB RAM - Monitoring Hub
+// =============================================================================
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// =============================================================================
+// LOKI - Log Aggregation
+// =============================================================================
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki-oracle01:3100/loki/api/v1/push"
+    // For remote Loki, use: url = "http://10.0.206.10:3100/loki/api/v1/push"
+  }
+}
+
+// =============================================================================
+// MIMIR - Metrics Storage
+// =============================================================================
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9009/api/v1/push"
+    // For remote Mimir, use: url = "http://10.0.206.10:9009/api/v1/push"
+  }
+}
+
+// =============================================================================
+// LOG COLLECTION
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// System Logs Collection
+// -----------------------------------------------------------------------------
+loki.source.file "system_logs" {
+  targets = [
+    {__path__ = "/var/log/*.log", job = "system_logs", host = "oracle01"},
+  ]
+  forward_to = [loki.process.system_logs.receiver]
+}
+
+loki.process "system_logs" {
+  stage.static_labels {
+    values = {
+      job  = "system_logs",
+      host = "oracle01",
+    }
+  }
+  forward_to = [loki.write.loki.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Syslog Collection
+// -----------------------------------------------------------------------------
+loki.source.file "syslog" {
+  targets = [
+    {__path__ = "/var/log/syslog", job = "syslog", host = "oracle01"},
+  ]
+  forward_to = [loki.process.syslog.receiver]
+}
+
+loki.process "syslog" {
+  stage.static_labels {
+    values = {
+      job  = "syslog",
+      host = "oracle01",
+    }
+  }
+  forward_to = [loki.write.loki.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// OpenWrt Syslog Receiver (Port 1515) - LOCAL ROUTER
+// -----------------------------------------------------------------------------
+// Receives syslog from local OpenWrt router (10.0.100.1)
+// Contains firewall logs with source/dest IPs, ports, protocols
+
+loki.source.syslog "openwrt" {
+  listener {
+    address = "0.0.0.0:1515"
+    protocol = "rfc3164"  // Standard syslog format
+  }
+  forward_to = [loki.process.openwrt.receiver]
+  labels = {
+    job = "openwrt_syslog",
+  }
+}
+
+loki.process "openwrt" {
+  // Parse firewall log format using logfmt
+  stage.logfmt {
+    mapping = {
+      src_ip    = "SRC",
+      dest_ip   = "DST",
+      proto     = "PROTO",
+      dest_port = "DPT",
+      src_port  = "SPT",
+    }
+  }
+
+  // CRITICAL: DON'T add high-cardinality fields as labels!
+  // These fields are available in the log line for LogQL queries:
+  // {job="openwrt_syslog"} | logfmt | src_ip="1.2.3.4"
+
+  stage.static_labels {
+    values = {
+      job    = "openwrt_syslog",
+      router = "local",
+      host   = "10.0.100.1",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// OracleWrt Syslog Receiver (Port 1516) - CLOUD ROUTER
+// -----------------------------------------------------------------------------
+// Receives syslog from cloud OpenWrt router (10.0.5.1)
+// Contains firewall logs with source/dest IPs, ports, protocols
+
+loki.source.syslog "oraclewrt" {
+  listener {
+    address = "0.0.0.0:1516"
+    protocol = "rfc3164"
+  }
+  forward_to = [loki.process.oraclewrt.receiver]
+  labels = {
+    job = "oraclewrt_syslog",
+  }
+}
+
+loki.process "oraclewrt" {
+  stage.logfmt {
+    mapping = {
+      src_ip    = "SRC",
+      dest_ip   = "DST",
+      proto     = "PROTO",
+      dest_port = "DPT",
+      src_port  = "SPT",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      job    = "oraclewrt_syslog",
+      router = "cloud",
+      host   = "10.0.5.1",
+    }
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+// =============================================================================
+// METRICS COLLECTION
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Docker Swarm Metrics
+// -----------------------------------------------------------------------------
+prometheus.scrape "docker_swarm" {
+  targets = [
+    {"__address__" = "10.48.1.15:9323",  "instance" = "teck01swarm"},
+    {"__address__" = "10.0.206.10:9323", "instance" = "orc01swarm"},
+    {"__address__" = "10.0.206.20:9323", "instance" = "orc02swarm"},
+  ]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Node Exporter Metrics (System Metrics)
+// -----------------------------------------------------------------------------
+prometheus.scrape "node_exporter" {
+  targets = [
+    {"__address__" = "10.0.5.1:9100",    "instance" = "oraclewrt"},
+    {"__address__" = "10.0.100.1:9100",  "instance" = "openwrt"},
+    {"__address__" = "10.0.206.10:9100", "instance" = "oracle01"},
+    {"__address__" = "10.0.206.20:9100", "instance" = "oracle02"},
+    {"__address__" = "10.48.1.15:9100",  "instance" = "tecklord01"},
+  ]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// cAdvisor Metrics (Container Metrics)
+// -----------------------------------------------------------------------------
+prometheus.scrape "cadvisor" {
+  targets = [
+    {"__address__" = "10.0.206.10:9200", "instance" = "oracle01"},
+    {"__address__" = "10.0.206.20:9200", "instance" = "oracle02"},
+    {"__address__" = "10.48.1.15:9200",  "instance" = "tecklord01"},
+  ]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Collectd Exporter Metrics (OpenWrt Collection)
+// -----------------------------------------------------------------------------
+prometheus.scrape "collectd_metrics" {
+  targets = [
+    {"__address__" = "collectd-exporter:9103", "instance" = "wrt-collection"},
+  ]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}

@@ -1,0 +1,64 @@
+# =============================================================================
+# Grafana Alloy - Oracle01 (Monitoring Hub)
+# =============================================================================
+# Purpose: Unified observability agent collecting logs AND metrics
+# Sends: Logs → Loki-Oracle01, Metrics → Mimir-Oracle01
+# Server: oracle01 (10.0.206.10)
+# =============================================================================
+
+services:
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    restart: unless-stopped
+
+    # Configuration
+    volumes:
+      - ./configs/oracle01-alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/log:/var/log:ro  # Read system logs
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro  # Optional: Docker logs
+
+    # Ports
+    ports:
+      - "12345:12345"    # Alloy UI
+      - "1515:1515/udp"  # OpenWrt syslog (local router)
+      - "1516:1516/udp"  # OracleWrt syslog (cloud router)
+
+    # Command
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+
+    # Network
+    network_mode: bridge
+
+    # Optional: Resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
+
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# 1. Update the config file path if needed
+# 2. Ensure Loki and Mimir containers exist and are accessible
+# 3. Verify ports 1515/1516 are not used by existing Promtail
+# 4. Configure OpenWrt routers to send syslog to 10.0.206.10:1515 and 1516
+#
+# Deploy:
+#   docker-compose -f docker-compose-oracle01.yml up -d
+#
+# Verify:
+#   docker logs -f alloy
+#   curl http://localhost:12345/metrics
+#
+# Access Alloy UI:
+#   http://10.0.206.10:12345
+# =============================================================================

@@ -1,0 +1,72 @@
+# =============================================================================
+# Grafana Alloy - Oracle02 (Application Server)
+# =============================================================================
+# Purpose: Collect logs and metrics, send to centralized Oracle01
+# Sends: Logs → Loki-Oracle01, Metrics → Mimir-Oracle01
+# Server: oracle02 (10.0.206.20)
+# =============================================================================
+
+services:
+  alloy-oracle02:
+    image: grafana/alloy:latest
+    container_name: alloy-oracle02
+    restart: unless-stopped
+
+    # Configuration
+    volumes:
+      - ./configs/oracle02-alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/log:/var/log:ro                # Read system logs
+      - /var/www/html:/var/www/html:ro      # Read nginx logs
+      - /var/log/suricata:/var/log/suricata:ro  # Read Suricata IDS logs
+
+    # Ports
+    ports:
+      - "12346:12345"    # Alloy UI (different port than Oracle01)
+
+    # Command
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+
+    # Network - use host mode for easier connectivity to Oracle01
+    network_mode: host
+
+    # Optional: Resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 256M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 128M
+
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# 1. Ensure Oracle01's Loki is accessible at 10.0.206.10:3100
+# 2. Ensure Oracle01's Mimir is accessible at 10.0.206.10:9009
+# 3. Stop existing Promtail containers BEFORE starting Alloy:
+#      docker stop promtail-orc2 promtail-orc2-suricata
+# 4. Verify nginx log paths match your setup
+# 5. Ensure Suricata eve.json path is correct
+#
+# Deploy:
+#   docker-compose -f docker-compose-oracle02.yml up -d
+#
+# Verify:
+#   docker logs -f alloy-oracle02
+#   curl http://localhost:12346/metrics
+#
+# Access Alloy UI:
+#   http://10.0.206.20:12346
+#
+# IMPORTANT CARDINALITY FIX:
+# This config uses ONLY low-cardinality labels:
+#   - job, host, website, event_type, proto
+# High-cardinality fields (IP addresses, ports, GeoIP) are parsed but NOT used as labels.
+# Query them with LogQL instead:
+#   {job="suricata"} | json | src_ip="1.2.3.4"
+# =============================================================================
