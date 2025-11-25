@@ -45,6 +45,21 @@ Alloy's `stage.geoip` processor enriches log lines with geoip_* fields:
 
 **CRITICAL:** These fields are added to log content, **NOT as labels**, preventing cardinality explosion.
 
+### Alloy Configuration Syntax
+
+```hcl
+stage.geoip {
+  db      = "/geoip/GeoLite2-City.mmdb"  // Path to database file in container
+  source  = "src_ip"                      // Field containing IP address to lookup
+  db_type = "city"                        // Database type: "city", "asn", or "country"
+}
+```
+
+**Required parameters:**
+- `db` - Path to MaxMind database file
+- `source` - Field name containing the IP address
+- `db_type` - Database type (`"city"` for GeoLite2-City.mmdb)
+
 Query with LogQL:
 ```logql
 {job="suricata"} | json | geoip_country_name="China"

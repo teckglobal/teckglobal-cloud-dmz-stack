@@ -103,15 +103,17 @@ loki.process "openwrt" {
     }
   }
 
-  // NOTE: GeoIP processing not available in Grafana Alloy
-  // For GeoIP enrichment, consider:
-  // 1. Querying GeoIP in Grafana dashboards
-  // 2. Using Logstash with GeoIP filter before Loki
-  // 3. Post-processing with external tools
+  // GeoIP enrichment for source IP
+  stage.geoip {
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "src_ip"
+    db_type = "city"
+  }
 
   // CRITICAL: DON'T add high-cardinality fields as labels!
-  // These fields are available in the log line for LogQL queries:
-  // {job="openwrt_syslog"} | logfmt | src_ip="1.2.3.4"
+  // GeoIP fields (geoip_country_name, geoip_city_name, etc.) are added to log content
+  // Query them with LogQL:
+  // {job="openwrt_syslog"} | logfmt | geoip_country_name="China"
 
   stage.static_labels {
     values = {
@@ -149,8 +151,12 @@ loki.process "oraclewrt" {
     }
   }
 
-  // NOTE: GeoIP processing not available in Grafana Alloy
-  // IP addresses are parsed and available for querying
+  // GeoIP enrichment for source IP
+  stage.geoip {
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "src_ip"
+    db_type = "city"
+  }
 
   stage.static_labels {
     values = {

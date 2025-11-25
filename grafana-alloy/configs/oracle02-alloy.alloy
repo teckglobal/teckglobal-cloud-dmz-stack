@@ -81,8 +81,12 @@ loki.process "nginx_access" {
     expression = "/var/www/html/(?P<website>[^/]+)/logs/"
   }
 
-  // NOTE: GeoIP processing not available in Grafana Alloy
-  // IP addresses (remote_addr) are parsed and available for querying
+  // GeoIP enrichment for visitor IP
+  stage.geoip {
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "remote_addr"
+    db_type = "city"
+  }
 
   // CRITICAL: Only use LOW-CARDINALITY labels!
   stage.labels {
@@ -103,9 +107,11 @@ loki.process "nginx_access" {
   // - status (100+ status codes)
   // - request_uri (infinite URLs)
   // - http_user_agent (thousands of agents)
+  // - geoip_country_name, geoip_city_name (hundreds of unique values)
   //
   // Instead, query them with LogQL:
   // {job="nginx_access"} | json | remote_addr="1.2.3.4" | status="404"
+  // {job="nginx_access"} | json | geoip_country_name="United States"
 
   forward_to = [loki.write.loki_central.receiver]
 }
@@ -177,8 +183,12 @@ loki.process "suricata" {
     }
   }
 
-  // NOTE: GeoIP processing not available in Grafana Alloy
-  // IP addresses are parsed and available for querying via LogQL
+  // GeoIP enrichment for source IP
+  stage.geoip {
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "src_ip"
+    db_type = "city"
+  }
 
   // CRITICAL: Only use LOW-CARDINALITY labels!
   stage.labels {
@@ -201,10 +211,12 @@ loki.process "suricata" {
   // - dest_port (hundreds of ports)
   // - signature (hundreds of signatures)
   // - signature_id (hundreds of IDs)
+  // - geoip_country_name, geoip_city_name (hundreds of values)
   //
   // Instead, use LogQL queries:
   // {job="suricata", event_type="alert"} | json | src_ip="45.225.192.88"
   // {job="suricata"} | json | signature=~".*SQL.*"
+  // {job="suricata"} | json | geoip_country_name="China"
 
   forward_to = [loki.write.loki_central.receiver]
 }

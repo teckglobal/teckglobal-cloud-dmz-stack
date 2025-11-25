@@ -326,10 +326,11 @@ loki.process "suricata" {
     }
   }
 
-  // GeoIP enrichment
+  // GeoIP enrichment for source IP
   stage.geoip {
-    db     = "/geoip/GeoLite2-City.mmdb"
-    source = "src_ip"
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "src_ip"
+    db_type = "city"
   }
 
   // Low-cardinality labels only
