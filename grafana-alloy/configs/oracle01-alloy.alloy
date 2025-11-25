@@ -17,7 +17,7 @@ logging {
 
 loki.write "loki" {
   endpoint {
-    url = "http://loki-oracle01:3100/loki/api/v1/push"
+    url = "http://loki-orc01:3100/loki/api/v1/push"
     // For remote Loki, use: url = "http://10.0.206.10:3100/loki/api/v1/push"
   }
 }
@@ -106,9 +106,17 @@ loki.process "openwrt" {
     }
   }
 
+  // GeoIP lookup on source IP
+  // Adds geoip_* fields to log line WITHOUT creating labels
+  stage.geoip {
+    db     = "/geoip/GeoLite2-City.mmdb"
+    source = "src_ip"
+  }
+
   // CRITICAL: DON'T add high-cardinality fields as labels!
   // These fields are available in the log line for LogQL queries:
   // {job="openwrt_syslog"} | logfmt | src_ip="1.2.3.4"
+  // {job="openwrt_syslog"} | logfmt | geoip_country_name="China"
 
   stage.static_labels {
     values = {
@@ -147,6 +155,13 @@ loki.process "oraclewrt" {
       dest_port = "DPT",
       src_port  = "SPT",
     }
+  }
+
+  // GeoIP lookup on source IP
+  // Adds geoip_* fields to log line WITHOUT creating labels
+  stage.geoip {
+    db     = "/geoip/GeoLite2-City.mmdb"
+    source = "src_ip"
   }
 
   stage.static_labels {

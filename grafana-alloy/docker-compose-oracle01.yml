@@ -7,16 +7,30 @@
 # =============================================================================
 
 services:
-  alloy:
+  alloy-orc01:
     image: grafana/alloy:latest
-    container_name: alloy
+    container_name: alloy-orc01
     restart: unless-stopped
 
     # Configuration
     volumes:
+      # Alloy configuration
       - ./configs/oracle01-alloy.alloy:/etc/alloy/config.alloy:ro
-      - /var/log:/var/log:ro  # Read system logs
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro  # Optional: Docker logs
+
+      # Persistent data volume (positions, WAL, etc.)
+      - alloy-data:/var/lib/alloy/data
+
+      # GeoIP database for IP geolocation
+      - /opt/geoip/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+
+      # Docker socket for service discovery
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # System logs
+      - /var/log:/var/log:ro
+
+      # Docker container logs (direct access)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
 
     # Ports
     ports:
@@ -43,6 +57,10 @@ services:
     #     reservations:
     #       cpus: '0.5'
     #       memory: 256M
+
+volumes:
+  alloy-data:
+    driver: local
 
 # =============================================================================
 # DEPLOYMENT NOTES

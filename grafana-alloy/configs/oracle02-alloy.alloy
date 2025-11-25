@@ -81,6 +81,13 @@ loki.process "nginx_access" {
     expression = "/var/www/html/(?P<website>[^/]+)/logs/"
   }
 
+  // GeoIP lookup on visitor IP
+  // Adds geoip_* fields to log line WITHOUT creating labels
+  stage.geoip {
+    db     = "/geoip/GeoLite2-City.mmdb"
+    source = "remote_addr"
+  }
+
   // CRITICAL: Only use LOW-CARDINALITY labels!
   stage.labels {
     values = {
@@ -100,9 +107,11 @@ loki.process "nginx_access" {
   // - status (100+ status codes)
   // - request_uri (infinite URLs)
   // - http_user_agent (thousands of agents)
+  // - geoip_city_name, geoip_country_name (thousands of locations)
   //
   // Instead, query them with LogQL:
   // {job="nginx_access"} | json | remote_addr="1.2.3.4" | status="404"
+  // {job="nginx_access"} | json | geoip_country_name="United States"
 
   forward_to = [loki.write.loki_central.receiver]
 }
@@ -172,6 +181,13 @@ loki.process "suricata" {
       dest_ip    = "dest_ip",
       dest_port  = "dest_port",
     }
+  }
+
+  // GeoIP lookup on source IP
+  // Adds geoip_* fields to log line WITHOUT creating labels
+  stage.geoip {
+    db     = "/geoip/GeoLite2-City.mmdb"
+    source = "src_ip"
   }
 
   // CRITICAL: Only use LOW-CARDINALITY labels!

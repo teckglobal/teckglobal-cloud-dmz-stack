@@ -1,0 +1,97 @@
+# =============================================================================
+# Suricata IDS - Network Intrusion Detection System
+# =============================================================================
+# Purpose: Monitor network traffic for malicious activity
+# Server: oracle02 (10.0.206.20) - Public-facing application server
+# Logs: /var/log/suricata/eve.json (collected by Alloy)
+# =============================================================================
+# Based on: https://github.com/jasonish/docker-suricata
+# =============================================================================
+
+services:
+  suricata-orc02:
+    image: jasonish/suricata:latest
+    container_name: suricata-orc02
+    restart: unless-stopped
+
+    # Network mode: host (required for packet capture)
+    network_mode: host
+
+    # Capabilities required for packet capture
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+      - NET_RAW
+
+    # Environment variables
+    environment:
+      # Network interface to monitor (change to your interface)
+      - SURICATA_OPTIONS=-i eth0
+
+      # Optional: Enable AF_PACKET for better performance
+      # - SURICATA_OPTIONS=-i eth0 --af-packet
+
+    # Volumes
+    volumes:
+      # Configuration file (optional - uses defaults if not mounted)
+      # - ./config/suricata.yaml:/etc/suricata/suricata.yaml:ro
+
+      # Custom rules directory (optional - uses default rules if not mounted)
+      # - ./rules:/etc/suricata/rules:ro
+
+      # Log directory (REQUIRED - must be accessible by Alloy)
+      - /var/log/suricata:/var/log/suricata
+
+      # Optional: Persistent rule updates
+      # - suricata-rules:/var/lib/suricata
+
+    # Optional: Resource limits
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '1.0'
+    #       memory: 1G
+
+# Optional: Named volume for rule updates
+# volumes:
+#   suricata-rules:
+#     driver: local
+
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# 1. Identify your network interface:
+#      ip addr show
+#    Common names: eth0, ens3, enp0s3
+#
+# 2. Update SURICATA_OPTIONS with your interface name
+#
+# 3. Deploy:
+#      docker-compose up -d
+#
+# 4. Verify Suricata is running:
+#      docker logs -f suricata-orc02
+#
+# 5. Check logs are being generated:
+#      tail -f /var/log/suricata/eve.json
+#
+# 6. Verify Alloy is collecting Suricata logs:
+#      docker logs alloy-orc02 | grep suricata
+#
+# 7. Query Suricata logs in Loki:
+#      curl -G -s "http://10.0.206.10:3100/loki/api/v1/query" \
+#        --data-urlencode 'query={job="suricata"}' \
+#        --data-urlencode 'limit=10' | jq
+#
+# =============================================================================
+# IMPORTANT SECURITY NOTES
+# =============================================================================
+# - Suricata runs in host network mode for packet capture
+# - This grants the container access to ALL network interfaces
+# - Ensure your firewall rules are properly configured
+# - Monitor Suricata logs regularly for security events
+# - Keep Suricata and rules updated
+# =============================================================================

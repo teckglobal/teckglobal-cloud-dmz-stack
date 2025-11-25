@@ -408,6 +408,203 @@ Use **LogQL** to query fields AFTER ingestion:
 
 ---
 
+## 🌍 GeoIP Integration
+
+### Overview
+
+GeoIP processing enriches logs with geographic information about IP addresses **without creating high-cardinality labels**. This provides valuable threat intelligence while maintaining low stream counts.
+
+### What GeoIP Provides
+
+When enabled, Alloy adds these fields to log lines:
+- `geoip_country_name` - "United States"
+- `geoip_country_code` - "US"
+- `geoip_city_name` - "Los Angeles"
+- `geoip_location_latitude` - "34.0522"
+- `geoip_location_longitude` - "-118.2437"
+
+### Enabled For
+
+- **Router firewall logs** (Oracle01) - Track attack sources
+- **Suricata IDS logs** (Oracle02) - Identify threat origins
+- **Nginx access logs** (Oracle02) - Understand visitor geography
+
+### Setup Required
+
+1. **Install GeoIP database** - See [GeoIP Setup Guide](../docs/geoip-setup.md)
+2. **Mount database in containers** - Already configured in docker-compose files
+3. **Deploy Alloy** - GeoIP processing automatically enabled
+
+### Querying GeoIP Data
+
+GeoIP fields are in log content, **NOT labels**. Query with LogQL:
+
+```logql
+# Suricata alerts from China
+{job="suricata", event_type="alert"} | json | geoip_country_name="China"
+
+# Nginx visitors from London
+{job="nginx_access"} | json | geoip_city_name="London"
+
+# Router firewall blocks by country
+{job="openwrt_syslog"} | logfmt | geoip_country_name="Russia"
+
+# Top attacking countries
+topk(10, sum by (geoip_country_name)
+  (count_over_time({job="suricata", event_type="alert"}[24h]
+  | json | geoip_country_name!="")))
+```
+
+### Why Not Use GeoIP as Labels?
+
+❌ **DON'T DO THIS:**
+```hcl
+stage.labels {
+  values = {
+    country = "geoip_country_name",  // 200+ countries
+    city    = "geoip_city_name",     // 10,000+ cities
+  }
+}
+```
+**Result:** Stream explosion! 10,000+ streams = 429 errors
+
+✅ **DO THIS (Already Implemented):**
+```hcl
+stage.geoip {
+  db     = "/geoip/GeoLite2-City.mmdb"
+  source = "src_ip"
+}
+// GeoIP fields added to log content, not as labels
+```
+**Result:** Low streams, queryable data!
+
+---
+
+## 📦 Volume Mounts
+
+### Overview
+
+Alloy containers require several volume mounts for data access and persistence. This section explains each mount's purpose.
+
+### Oracle01 Volume Mounts
+
+```yaml
+volumes:
+  # Alloy configuration
+  - ./configs/oracle01-alloy.alloy:/etc/alloy/config.alloy:ro
+
+  # Persistent data volume (positions, WAL, etc.)
+  - alloy-data:/var/lib/alloy/data
+
+  # GeoIP database for IP geolocation
+  - /opt/geoip/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+
+  # Docker socket for service discovery
+  - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # System logs
+  - /var/log:/var/log:ro
+
+  # Docker container logs (direct access)
+  - /var/lib/docker/containers:/var/lib/docker/containers:ro
+```
+
+### Oracle02 Volume Mounts
+
+```yaml
+volumes:
+  # Alloy configuration
+  - ./configs/oracle02-alloy.alloy:/etc/alloy/config.alloy:ro
+
+  # Persistent data volume (positions, WAL, etc.)
+  - alloy-data:/var/lib/alloy/data
+
+  # GeoIP database for IP geolocation
+  - /opt/geoip/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+
+  # Docker socket (optional but recommended)
+  - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  # System logs
+  - /var/log:/var/log:ro
+
+  # Nginx logs (multiple websites)
+  - /var/www/html:/var/www/html:ro
+
+  # Suricata IDS logs
+  - /var/log/suricata:/var/log/suricata:ro
+
+  # Docker container logs (direct access)
+  - /var/lib/docker/containers:/var/lib/docker/containers:ro
+```
+
+### Volume Purpose Explained
+
+| Volume | Purpose | Required? | Notes |
+|--------|---------|-----------|-------|
+| **Config file** | Alloy configuration | ✅ Required | Read-only (`:ro`) |
+| **Data volume** | Persistent positions, WAL | ✅ Required | Survives container restart |
+| **GeoIP database** | IP geolocation | ⚠️ GeoIP only | Required if using GeoIP processing |
+| **Docker socket** | Service discovery | 🔧 Optional | Enables dynamic Docker service detection |
+| **System logs** | `/var/log` access | 🔧 As needed | Only if collecting system logs |
+| **Nginx logs** | Web server logs | 🔧 Oracle02 only | Only on web servers |
+| **Suricata logs** | IDS logs | 🔧 Oracle02 only | Only where Suricata runs |
+| **Container logs** | Direct log access | 🔧 Optional | Alternative to Docker API |
+
+### Security Considerations
+
+**Read-Only Mounts (`:ro`):**
+- Prevents Alloy from modifying files
+- Use for all file/directory mounts
+- Exception: Data volume needs write access
+
+**Docker Socket (`/var/run/docker.sock`):**
+- ⚠️ Grants container access to Docker API
+- Can list/inspect containers
+- Cannot create/destroy containers (no `--privileged`)
+- Useful for dynamic service discovery
+- Optional - remove if not needed
+
+**Data Volume Permissions:**
+- Alloy runs as `nobody` user (UID 65534)
+- Data volume owned by Docker
+- No host permission changes needed
+
+---
+
+## 📛 Container Naming Convention
+
+### Standard Naming
+
+All containers in the TeckGlobal stack use this naming convention:
+
+**Format:** `<service>-orc<number>`
+
+**Examples:**
+- `alloy-orc01` - Alloy on Oracle01
+- `alloy-orc02` - Alloy on Oracle02
+- `loki-orc01` - Loki on Oracle01
+- `mimir-orc01` - Mimir on Oracle01
+- `suricata-orc02` - Suricata on Oracle02
+
+### Why "orc" Instead of "oracle"?
+
+- **Short and memorable** - Easier to type in commands
+- **Consistent** - Same length for all containers
+- **Clear** - Still obviously refers to Oracle servers
+
+### Container References
+
+Update any scripts or documentation that reference old names:
+
+| Old Name | New Name |
+|----------|----------|
+| `alloy` | `alloy-orc01` |
+| `alloy-oracle02` | `alloy-orc02` |
+| `loki-oracle01` | `loki-orc01` |
+
+---
+
 ## ✅ Verification
 
 ### Check Alloy Health

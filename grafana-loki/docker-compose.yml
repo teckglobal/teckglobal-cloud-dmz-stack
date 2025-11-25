@@ -7,9 +7,9 @@
 # =============================================================================
 
 services:
-  loki-oracle01:
+  loki-orc01:
     image: grafana/loki:latest
-    container_name: loki-oracle01
+    container_name: loki-orc01
     restart: unless-stopped
 
     # Configuration

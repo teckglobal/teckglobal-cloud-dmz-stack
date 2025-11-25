@@ -184,7 +184,7 @@ Deploy OpenWrt as a virtual router in your cloud VPC to control all traffic ingr
 Connect multiple cloud regions or connect cloud infrastructure to on-premises networks with WireGuard VPN.
 
 ### 3. **Security Monitoring**
-Monitor all network traffic with Suricata IDS, analyze threats with GeoIP, and visualize in Grafana dashboards.
+Monitor all network traffic with Suricata IDS, analyze threats with GeoIP geolocation, and visualize security events in Grafana dashboards. Track attack sources by country, identify malicious patterns, and respond to threats in real-time.
 
 ### 4. **Centralized Logging**
 Aggregate logs from all servers, containers, and network devices into a single Loki instance for easy search and analysis.
@@ -241,6 +241,9 @@ Monitor nginx access/error logs, track request rates, analyze status codes, and 
 - [Firewall Best Practices](docs/openwrt/FIREWALL-CONFIG.md)
 
 ### Monitoring
+- [Grafana Alloy Deployment Guide](grafana-alloy/README.md)
+- [GeoIP Setup Guide](docs/geoip-setup.md) - IP geolocation for threat intelligence
+- [Suricata IDS Setup](suricata/README.md) - Network intrusion detection
 - [Migration from Promtail to Alloy](docs/monitoring/MIGRATION-FROM-PROMTAIL.md)
 - [Loki Cardinality Guide](docs/monitoring/CARDINALITY-GUIDE.md)
 - [Dashboard Guide](docs/monitoring/DASHBOARDS.md)

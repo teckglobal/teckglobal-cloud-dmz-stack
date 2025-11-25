@@ -7,17 +7,36 @@
 # =============================================================================
 
 services:
-  alloy-oracle02:
+  alloy-orc02:
     image: grafana/alloy:latest
-    container_name: alloy-oracle02
+    container_name: alloy-orc02
     restart: unless-stopped
 
     # Configuration
     volumes:
+      # Alloy configuration
       - ./configs/oracle02-alloy.alloy:/etc/alloy/config.alloy:ro
-      - /var/log:/var/log:ro                # Read system logs
-      - /var/www/html:/var/www/html:ro      # Read nginx logs
-      - /var/log/suricata:/var/log/suricata:ro  # Read Suricata IDS logs
+
+      # Persistent data volume (positions, WAL, etc.)
+      - alloy-data:/var/lib/alloy/data
+
+      # GeoIP database for IP geolocation
+      - /opt/geoip/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+
+      # Docker socket for service discovery (optional but recommended)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+      # System logs
+      - /var/log:/var/log:ro
+
+      # Nginx logs (multiple websites)
+      - /var/www/html:/var/www/html:ro
+
+      # Suricata IDS logs
+      - /var/log/suricata:/var/log/suricata:ro
+
+      # Docker container logs (direct access)
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
 
     # Ports
     ports:
@@ -42,6 +61,10 @@ services:
     #     reservations:
     #       cpus: '0.25'
     #       memory: 128M
+
+volumes:
+  alloy-data:
+    driver: local
 
 # =============================================================================
 # DEPLOYMENT NOTES
