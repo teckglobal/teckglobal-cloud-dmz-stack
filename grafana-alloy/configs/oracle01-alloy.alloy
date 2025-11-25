@@ -40,10 +40,18 @@ prometheus.remote_write "mimir" {
 // -----------------------------------------------------------------------------
 // System Logs Collection
 // -----------------------------------------------------------------------------
-loki.source.file "system_logs" {
-  targets = [
-    {__path__ = "/var/log/*.log", job = "system_logs", host = "oracle01"},
+local.file_match "system_logs" {
+  path_targets = [
+    {
+      __path__ = "/var/log/*.log",
+      job      = "system_logs",
+      host     = "oracle01",
+    },
   ]
+}
+
+loki.source.file "system_logs" {
+  targets    = local.file_match.system_logs.targets
   forward_to = [loki.process.system_logs.receiver]
 }
 
@@ -60,10 +68,18 @@ loki.process "system_logs" {
 // -----------------------------------------------------------------------------
 // Syslog Collection
 // -----------------------------------------------------------------------------
-loki.source.file "syslog" {
-  targets = [
-    {__path__ = "/var/log/syslog", job = "syslog", host = "oracle01"},
+local.file_match "syslog" {
+  path_targets = [
+    {
+      __path__ = "/var/log/syslog",
+      job      = "syslog",
+      host     = "oracle01",
+    },
   ]
+}
+
+loki.source.file "syslog" {
+  targets    = local.file_match.syslog.targets
   forward_to = [loki.process.syslog.receiver]
 }
 

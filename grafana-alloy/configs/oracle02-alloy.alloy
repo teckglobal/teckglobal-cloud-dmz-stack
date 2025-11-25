@@ -34,10 +34,18 @@ prometheus.remote_write "mimir_central" {
 // -----------------------------------------------------------------------------
 // Syslog Collection
 // -----------------------------------------------------------------------------
-loki.source.file "syslog" {
-  targets = [
-    {__path__ = "/var/log/syslog", job = "syslog", host = "oracle02"},
+local.file_match "syslog" {
+  path_targets = [
+    {
+      __path__ = "/var/log/syslog",
+      job      = "syslog",
+      host     = "oracle02",
+    },
   ]
+}
+
+loki.source.file "syslog" {
+  targets    = local.file_match.syslog.targets
   forward_to = [loki.process.syslog.receiver]
 }
 
@@ -58,14 +66,18 @@ loki.process "syslog" {
 // Before: Created one stream PER LOG FILE (10+ websites = 10+ streams)
 // After: Creates streams by job/host/website only (~10-20 streams total)
 
-loki.source.file "nginx_access" {
-  targets = [
+local.file_match "nginx_access" {
+  path_targets = [
     {
       __path__ = "/var/www/html/*/logs/access.log",
       job      = "nginx_access",
       host     = "oracle02",
     },
   ]
+}
+
+loki.source.file "nginx_access" {
+  targets    = local.file_match.nginx_access.targets
   forward_to = [loki.process.nginx_access.receiver]
 }
 
@@ -119,14 +131,18 @@ loki.process "nginx_access" {
 // -----------------------------------------------------------------------------
 // Nginx Error Logs
 // -----------------------------------------------------------------------------
-loki.source.file "nginx_error" {
-  targets = [
+local.file_match "nginx_error" {
+  path_targets = [
     {
       __path__ = "/var/www/html/*/logs/error.log",
       job      = "nginx_error",
       host     = "oracle02",
     },
   ]
+}
+
+loki.source.file "nginx_error" {
+  targets    = local.file_match.nginx_error.targets
   forward_to = [loki.process.nginx_error.receiver]
 }
 
@@ -160,14 +176,18 @@ loki.process "nginx_error" {
 // Before: src_ip, dest_port, geoip_city, geoip_lat/long, signature as labels
 // After: Only event_type and proto as labels (~20-50 streams total)
 
-loki.source.file "suricata" {
-  targets = [
+local.file_match "suricata" {
+  path_targets = [
     {
       __path__ = "/var/log/suricata/eve.json",
       job      = "suricata",
       host     = "oracle02",
     },
   ]
+}
+
+loki.source.file "suricata" {
+  targets    = local.file_match.suricata.targets
   forward_to = [loki.process.suricata.receiver]
 }
 
