@@ -61,6 +61,9 @@ limits_config:
   # Split queries (improves performance)
   split_queries_by_interval: 24h        # Split long queries into 24h chunks
 
+  # Retention period (applies to all tenants when auth is disabled)
+  retention_period: 720h                 # 30 days retention
+
 # =============================================================================
 # SCHEMA CONFIGURATION
 # =============================================================================
@@ -112,12 +115,9 @@ chunk_store_config:
       ttl: 1h
 
 # =============================================================================
-# TABLE MANAGER (Index Retention)
+# TABLE MANAGER - DEPRECATED (retention managed by compactor)
 # =============================================================================
-
-table_manager:
-  retention_deletes_enabled: true
-  retention_period: 720h                 # 30 days retention
+# table_manager is deprecated in favor of compactor for retention management
 
 # =============================================================================
 # QUERY FRONTEND (Optional - Improves Query Performance)
