@@ -98,6 +98,7 @@ compactor:
   retention_enabled: true                # Enable automatic deletion of old data
   retention_delete_delay: 2h             # Wait 2h before deleting
   retention_delete_worker_count: 150     # Parallel workers for deletion
+  delete_request_store: filesystem       # Required when retention is enabled
 
 # =============================================================================
 # CHUNK STORE (Chunk-level Configuration)
