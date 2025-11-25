@@ -81,12 +81,8 @@ loki.process "nginx_access" {
     expression = "/var/www/html/(?P<website>[^/]+)/logs/"
   }
 
-  // GeoIP lookup on visitor IP
-  // Adds geoip_* fields to log line WITHOUT creating labels
-  stage.geoip {
-    db     = "/geoip/GeoLite2-City.mmdb"
-    source = "remote_addr"
-  }
+  // NOTE: GeoIP processing not available in Grafana Alloy
+  // IP addresses (remote_addr) are parsed and available for querying
 
   // CRITICAL: Only use LOW-CARDINALITY labels!
   stage.labels {
@@ -107,11 +103,9 @@ loki.process "nginx_access" {
   // - status (100+ status codes)
   // - request_uri (infinite URLs)
   // - http_user_agent (thousands of agents)
-  // - geoip_city_name, geoip_country_name (thousands of locations)
   //
   // Instead, query them with LogQL:
   // {job="nginx_access"} | json | remote_addr="1.2.3.4" | status="404"
-  // {job="nginx_access"} | json | geoip_country_name="United States"
 
   forward_to = [loki.write.loki_central.receiver]
 }
@@ -183,12 +177,8 @@ loki.process "suricata" {
     }
   }
 
-  // GeoIP lookup on source IP
-  // Adds geoip_* fields to log line WITHOUT creating labels
-  stage.geoip {
-    db     = "/geoip/GeoLite2-City.mmdb"
-    source = "src_ip"
-  }
+  // NOTE: GeoIP processing not available in Grafana Alloy
+  // IP addresses are parsed and available for querying via LogQL
 
   // CRITICAL: Only use LOW-CARDINALITY labels!
   stage.labels {
@@ -209,14 +199,11 @@ loki.process "suricata" {
   // - src_ip (thousands of unique IPs per day)
   // - dest_ip (hundreds of destinations)
   // - dest_port (hundreds of ports)
-  // - geoip_city_name (thousands of cities)
-  // - geoip_location_latitude/longitude (infinite precision)
   // - signature (hundreds of signatures)
   // - signature_id (hundreds of IDs)
   //
   // Instead, use LogQL queries:
   // {job="suricata", event_type="alert"} | json | src_ip="45.225.192.88"
-  // {job="suricata"} | json | geoip_city_name="London"
   // {job="suricata"} | json | signature=~".*SQL.*"
 
   forward_to = [loki.write.loki_central.receiver]

@@ -89,9 +89,6 @@ loki.source.syslog "openwrt" {
     protocol = "udp"  // UDP protocol for syslog
   }
   forward_to = [loki.process.openwrt.receiver]
-  labels = {
-    job = "openwrt_syslog",
-  }
 }
 
 loki.process "openwrt" {
@@ -106,17 +103,15 @@ loki.process "openwrt" {
     }
   }
 
-  // GeoIP lookup on source IP
-  // Adds geoip_* fields to log line WITHOUT creating labels
-  stage.geoip {
-    db     = "/geoip/GeoLite2-City.mmdb"
-    source = "src_ip"
-  }
+  // NOTE: GeoIP processing not available in Grafana Alloy
+  // For GeoIP enrichment, consider:
+  // 1. Querying GeoIP in Grafana dashboards
+  // 2. Using Logstash with GeoIP filter before Loki
+  // 3. Post-processing with external tools
 
   // CRITICAL: DON'T add high-cardinality fields as labels!
   // These fields are available in the log line for LogQL queries:
   // {job="openwrt_syslog"} | logfmt | src_ip="1.2.3.4"
-  // {job="openwrt_syslog"} | logfmt | geoip_country_name="China"
 
   stage.static_labels {
     values = {
@@ -141,9 +136,6 @@ loki.source.syslog "oraclewrt" {
     protocol = "udp"
   }
   forward_to = [loki.process.oraclewrt.receiver]
-  labels = {
-    job = "oraclewrt_syslog",
-  }
 }
 
 loki.process "oraclewrt" {
@@ -157,12 +149,8 @@ loki.process "oraclewrt" {
     }
   }
 
-  // GeoIP lookup on source IP
-  // Adds geoip_* fields to log line WITHOUT creating labels
-  stage.geoip {
-    db     = "/geoip/GeoLite2-City.mmdb"
-    source = "src_ip"
-  }
+  // NOTE: GeoIP processing not available in Grafana Alloy
+  // IP addresses are parsed and available for querying
 
   stage.static_labels {
     values = {
