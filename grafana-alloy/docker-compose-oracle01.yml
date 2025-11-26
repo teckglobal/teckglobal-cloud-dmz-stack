@@ -35,8 +35,8 @@ services:
     # Ports
     ports:
       - "12345:12345"    # Alloy UI
-      - "1515:1515/udp"  # OpenWrt syslog (local router)
-      - "1516:1516/udp"  # OracleWrt syslog (cloud router)
+      - "1515:1515/tcp"  # OpenWrt syslog (local router)
+      - "1516:1516/tcp"  # OracleWrt syslog (cloud router)
 
     # Command
     command:

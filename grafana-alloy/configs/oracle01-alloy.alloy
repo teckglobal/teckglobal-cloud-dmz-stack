@@ -100,7 +100,7 @@ loki.process "syslog" {
 loki.source.syslog "openwrt" {
   listener {
     address = "0.0.0.0:1515"
-    protocol = "udp"  // UDP protocol for syslog
+    protocol = "tcp"  // TCP protocol for reliable syslog delivery
   }
   forward_to = [loki.process.openwrt.receiver]
 }
@@ -149,7 +149,7 @@ loki.process "openwrt" {
 loki.source.syslog "oraclewrt" {
   listener {
     address = "0.0.0.0:1516"
-    protocol = "udp"
+    protocol = "tcp"  // TCP protocol for reliable syslog delivery
   }
   forward_to = [loki.process.oraclewrt.receiver]
 }
