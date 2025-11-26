@@ -17,8 +17,7 @@ logging {
 
 loki.write "loki" {
   endpoint {
-    url = "http://loki-orc01:3100/loki/api/v1/push"
-    // For remote Loki, use: url = "http://10.0.206.10:3100/loki/api/v1/push"
+    url = "http://10.0.206.10:3100/loki/api/v1/push"
   }
 }
 
@@ -28,8 +27,7 @@ loki.write "loki" {
 
 prometheus.remote_write "mimir" {
   endpoint {
-    url = "http://mimir-orc01:9009/api/v1/push"
-    // For remote Mimir, use: url = "http://10.0.206.10:9009/api/v1/push"
+    url = "http://10.0.206.10:9009/api/v1/push"
   }
 }
 
@@ -232,7 +230,7 @@ prometheus.scrape "cadvisor" {
 // -----------------------------------------------------------------------------
 prometheus.scrape "collectd_metrics" {
   targets = [
-    {"__address__" = "collectd-exporter:9103", "instance" = "wrt-collection"},
+    {"__address__" = "10.0.206.10:9103", "instance" = "wrt-collection"},
   ]
   forward_to = [prometheus.remote_write.mimir.receiver]
 }

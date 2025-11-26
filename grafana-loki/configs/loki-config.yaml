@@ -9,12 +9,14 @@
 auth_enabled: false
 
 server:
+  http_listen_address: 0.0.0.0
   http_listen_port: 3100
+  grpc_listen_address: 0.0.0.0
   grpc_listen_port: 9095
   log_level: info
 
 common:
-  instance_addr: 127.0.0.1
+  instance_addr: 10.0.206.10
   path_prefix: /loki
   storage:
     filesystem:
@@ -140,7 +142,7 @@ query_range:
 
 ingester:
   lifecycler:
-    address: 127.0.0.1
+    address: 10.0.206.10
     ring:
       kvstore:
         store: inmemory

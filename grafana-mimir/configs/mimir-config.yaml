@@ -11,7 +11,9 @@ target: all
 
 # HTTP server configuration
 server:
+  http_listen_address: 0.0.0.0
   http_listen_port: 9009
+  grpc_listen_address: 0.0.0.0
   grpc_listen_port: 9095
   log_level: info
 

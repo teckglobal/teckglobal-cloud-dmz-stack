@@ -24,8 +24,8 @@ The configuration file is located at: [configs/mimir-config.yaml](configs/mimir-
 - **Retention:** 30 days
 - **Ports:**
   - 9009 (HTTP API/remote_write)
-  - 9095 (gRPC)
-  - 7946 (Memberlist)
+  - 9099:9095 (gRPC - mapped to 9099 to avoid conflict with Loki)
+  - 7964:7946 (Memberlist - mapped to 7964 to avoid port conflict)
 
 ### Deploy Mimir
 

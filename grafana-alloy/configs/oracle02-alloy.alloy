@@ -250,14 +250,14 @@ loki.process "suricata" {
 /*
 prometheus.scrape "node_exporter" {
   targets = [
-    {"__address__" = "localhost:9100", "instance" = "oracle02"},
+    {"__address__" = "10.0.206.20:9100", "instance" = "oracle02"},
   ]
   forward_to = [prometheus.remote_write.mimir_central.receiver]
 }
 
 prometheus.scrape "cadvisor" {
   targets = [
-    {"__address__" = "localhost:9200", "instance" = "oracle02"},
+    {"__address__" = "10.0.206.20:9200", "instance" = "oracle02"},
   ]
   forward_to = [prometheus.remote_write.mimir_central.receiver]
 }
