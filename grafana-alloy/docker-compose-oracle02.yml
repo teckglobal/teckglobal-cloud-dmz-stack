@@ -40,7 +40,7 @@ services:
 
     # Ports
     ports:
-      - "12345:12345"    # Alloy UI (different port than Oracle01)
+      - "12345:12345"    # Alloy UI (Same port as Oracle01)
 
     # Command
     command:
