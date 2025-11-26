@@ -110,24 +110,53 @@ loki.source.syslog "openwrt" {
 }
 
 loki.process "openwrt" {
-  // Parse OpenWrt firewall log format using regex
-  // Format: "DROP IN=eth0 OUT= SRC=x.x.x.x DST=y.y.y.y PROTO=TCP SPT=xxx DPT=xxx"
-  stage.regex {
-    expression = "(?P<action>DROP|REJECT|ACCEPT)?.*?IN=(?P<in_interface>\\S*).*?OUT=(?P<out_interface>\\S*).*?SRC=(?P<src_ip>[0-9\\.]+).*?DST=(?P<dest_ip>[0-9\\.]+).*?PROTO=(?P<proto>\\S+)(?:.*?SPT=(?P<src_port>\\d+))?(?:.*?DPT=(?P<dest_port>\\d+))?"
+  // Parse OpenWrt firewall logs using logfmt (KEY=VALUE format)
+  // Example: "DROP IN=eth0 OUT= SRC=1.2.3.4 DST=5.6.7.8 PROTO=TCP SPT=12345 DPT=443"
+  // logfmt automatically extracts all KEY=VALUE pairs from the message
+  stage.logfmt {
+    mapping = {
+      // Extract firewall log fields
+      IN    = "",  // Interface IN
+      OUT   = "",  // Interface OUT
+      SRC   = "",  // Source IP (used for GeoIP)
+      DST   = "",  // Destination IP
+      PROTO = "",  // Protocol (TCP/UDP/ICMP)
+      SPT   = "",  // Source Port
+      DPT   = "",  // Destination Port
+      MAC   = "",  // MAC address
+      LEN   = "",  // Packet length
+      TOS   = "",  // Type of Service
+      TTL   = "",  // Time to Live
+      ID    = "",  // IP ID
+      WINDOW = "", // TCP window size
+    }
   }
 
   // GeoIP enrichment for source IP
+  // This adds geoip_* fields to the extracted map
+  // Fields added: geoip_country_name, geoip_city_name, geoip_location_latitude, geoip_location_longitude, etc.
   stage.geoip {
     db      = "/geoip/GeoLite2-City.mmdb"
-    source  = "src_ip"
+    source  = "SRC"  // Use the SRC field extracted by logfmt
     db_type = "city"
   }
 
-  // CRITICAL: DON'T add high-cardinality fields as labels!
-  // GeoIP fields (geoip_country_name, geoip_city_name, etc.) are added to log content
-  // Query them with LogQL:
-  // {job="openwrt_syslog"} | regexp | geoip_country_name="China"
+  // Pack extracted fields (including GeoIP data) into JSON format in log content
+  // This makes ALL fields queryable with | json parser in LogQL
+  // Query example: {job="openwrt_syslog"} | json | SRC="1.2.3.4" | geoip_country_name="China"
+  stage.pack {
+    labels = [
+      "SRC", "DST", "PROTO", "SPT", "DPT",  // Firewall fields
+      "IN", "OUT", "MAC", "LEN", "TOS", "TTL", "ID", "WINDOW",  // Additional fields
+      "geoip_country_name", "geoip_city_name",  // GeoIP fields
+      "geoip_location_latitude", "geoip_location_longitude",
+      "geoip_country_code", "geoip_continent_name",
+    ]
+    ingest_timestamp = false  // Keep original timestamp from router
+  }
 
+  // CRITICAL: Only low-cardinality static labels
+  // All other fields are in JSON log content (not labels)
   stage.static_labels {
     values = {
       job    = "openwrt_syslog",
@@ -158,19 +187,53 @@ loki.source.syslog "oraclewrt" {
 }
 
 loki.process "oraclewrt" {
-  // First, extract the firewall log from syslog message field
-  // OpenWrt firewall logs are in the format: "DROP IN=eth0 OUT= SRC=x.x.x.x DST=y.y.y.y PROTO=TCP SPT=xxx DPT=xxx"
-  stage.regex {
-    expression = "(?P<action>DROP|REJECT|ACCEPT)?.*?IN=(?P<in_interface>\\S*).*?OUT=(?P<out_interface>\\S*).*?SRC=(?P<src_ip>[0-9\\.]+).*?DST=(?P<dest_ip>[0-9\\.]+).*?PROTO=(?P<proto>\\S+)(?:.*?SPT=(?P<src_port>\\d+))?(?:.*?DPT=(?P<dest_port>\\d+))?"
+  // Parse OpenWrt firewall logs using logfmt (KEY=VALUE format)
+  // Example: "banIP/pre-ct/drop: IN=eth0 OUT= SRC=1.2.3.4 DST=5.6.7.8 PROTO=TCP SPT=12345 DPT=443"
+  // logfmt automatically extracts all KEY=VALUE pairs from the message
+  stage.logfmt {
+    mapping = {
+      // Extract firewall log fields
+      IN    = "",  // Interface IN
+      OUT   = "",  // Interface OUT
+      SRC   = "",  // Source IP (used for GeoIP)
+      DST   = "",  // Destination IP
+      PROTO = "",  // Protocol (TCP/UDP/ICMP)
+      SPT   = "",  // Source Port
+      DPT   = "",  // Destination Port
+      MAC   = "",  // MAC address
+      LEN   = "",  // Packet length
+      TOS   = "",  // Type of Service
+      TTL   = "",  // Time to Live
+      ID    = "",  // IP ID
+      WINDOW = "", // TCP window size
+    }
   }
 
   // GeoIP enrichment for source IP
+  // This adds geoip_* fields to the extracted map
+  // Fields added: geoip_country_name, geoip_city_name, geoip_location_latitude, geoip_location_longitude, etc.
   stage.geoip {
     db      = "/geoip/GeoLite2-City.mmdb"
-    source  = "src_ip"
+    source  = "SRC"  // Use the SRC field extracted by logfmt
     db_type = "city"
   }
 
+  // Pack extracted fields (including GeoIP data) into JSON format in log content
+  // This makes ALL fields queryable with | json parser in LogQL
+  // Query example: {job="oraclewrt_syslog"} | json | SRC="1.2.3.4" | geoip_country_name="China"
+  stage.pack {
+    labels = [
+      "SRC", "DST", "PROTO", "SPT", "DPT",  // Firewall fields
+      "IN", "OUT", "MAC", "LEN", "TOS", "TTL", "ID", "WINDOW",  // Additional fields
+      "geoip_country_name", "geoip_city_name",  // GeoIP fields
+      "geoip_location_latitude", "geoip_location_longitude",
+      "geoip_country_code", "geoip_continent_name",
+    ]
+    ingest_timestamp = false  // Keep original timestamp from router
+  }
+
+  // CRITICAL: Only low-cardinality static labels
+  // All other fields are in JSON log content (not labels)
   stage.static_labels {
     values = {
       job    = "oraclewrt_syslog",
