@@ -1,0 +1,124 @@
+# =============================================================================
+# Grafana Mimir Configuration - Monolithic Mode
+# =============================================================================
+# Purpose: Long-term Prometheus metrics storage
+# Mode: Monolithic (single process for all components)
+# Server: oracle01 (10.0.206.10)
+# =============================================================================
+
+# Run all components in a single process
+target: all
+
+# HTTP server configuration
+server:
+  http_listen_port: 9009
+  grpc_listen_port: 9095
+  log_level: info
+
+# Storage configuration
+common:
+  storage:
+    backend: filesystem
+    filesystem:
+      dir: /data/mimir
+
+# Blocks storage (TSDB)
+blocks_storage:
+  backend: filesystem
+
+  # Local filesystem storage
+  filesystem:
+    dir: /data/mimir/blocks
+
+  # Bucket store configuration
+  bucket_store:
+    sync_dir: /data/mimir/tsdb-sync
+
+  # TSDB configuration
+  tsdb:
+    dir: /data/mimir/tsdb
+    retention_period: 30d
+
+# Compactor configuration
+compactor:
+  data_dir: /data/mimir/compactor
+  compaction_interval: 30m
+  deletion_delay: 2h
+
+# Ingester configuration
+ingester:
+  ring:
+    # Use filesystem for ring in monolithic mode
+    kvstore:
+      store: memberlist
+    replication_factor: 1
+
+  # WAL configuration
+  wal_enabled: true
+  wal_dir: /data/mimir/wal
+
+# Memberlist configuration (for service discovery in monolithic mode)
+memberlist:
+  node_name: mimir-orc01
+  bind_port: 7946
+
+# Limits configuration
+limits:
+  # Maximum number of series per user/tenant
+  max_global_series_per_user: 1000000
+
+  # Maximum number of series per metric
+  max_global_series_per_metric: 100000
+
+  # Ingestion rate limit (samples per second)
+  ingestion_rate: 100000
+  ingestion_burst_size: 200000
+
+  # Query limits
+  max_query_parallelism: 32
+  max_query_length: 90d
+
+# Ruler configuration (for recording rules and alerts)
+ruler:
+  enable_api: true
+  rule_path: /data/mimir/rules
+
+# Alertmanager configuration
+alertmanager:
+  data_dir: /data/mimir/alertmanager
+  enable_api: true
+  external_url: http://10.0.206.10:9009/alertmanager
+
+# Multitenancy (disabled for single-tenant mode)
+multitenancy_enabled: false
+
+# Distributor configuration
+distributor:
+  ring:
+    kvstore:
+      store: memberlist
+
+# Store gateway configuration
+store_gateway:
+  sharding_ring:
+    replication_factor: 1
+    kvstore:
+      store: memberlist
+
+# Query frontend configuration
+query_frontend:
+  # Enable query splitting for better performance
+  split_queries_by_interval: 24h
+
+  # Results cache configuration
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 512
+        ttl: 24h
+
+# Querier configuration
+querier:
+  # Maximum number of queries per second
+  max_concurrent: 20

@@ -28,7 +28,7 @@ loki.write "loki" {
 
 prometheus.remote_write "mimir" {
   endpoint {
-    url = "http://mimir:9009/api/v1/push"
+    url = "http://mimir-orc01:9009/api/v1/push"
     // For remote Mimir, use: url = "http://10.0.206.10:9009/api/v1/push"
   }
 }

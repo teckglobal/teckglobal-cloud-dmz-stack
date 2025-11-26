@@ -1,0 +1,77 @@
+# =============================================================================
+# Grafana Mimir - Long-term Metrics Storage
+# =============================================================================
+# Purpose: Prometheus-compatible metrics storage for the monitoring stack
+# Mode: Monolithic (all components in one container)
+# Server: oracle01 (10.0.206.10)
+# =============================================================================
+
+services:
+  mimir-orc01:
+    image: grafana/mimir:latest
+    container_name: mimir-orc01
+    restart: unless-stopped
+
+    # Configuration and data volumes
+    volumes:
+      - ./configs/mimir-config.yaml:/etc/mimir/mimir-config.yaml:ro
+      - mimir_data:/data/mimir
+
+    # Ports
+    ports:
+      - "9009:9009"  # HTTP API
+      - "9095:9095"  # gRPC
+      - "7946:7946"  # Memberlist (gossip protocol)
+
+    # Command - run in monolithic mode with custom config
+    command:
+      - -config.file=/etc/mimir/mimir-config.yaml
+      - -target=all
+
+    # Network
+    network_mode: bridge
+
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9009/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (optional - adjust based on your server)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2.0'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '1.0'
+    #       memory: 1G
+
+volumes:
+  mimir_data:
+    driver: local
+
+# =============================================================================
+# DEPLOYMENT NOTES
+# =============================================================================
+# 1. Ensure the config file exists at ./configs/mimir-config.yaml
+# 2. Mimir will listen on:
+#    - Port 9009 for HTTP API (Prometheus remote_write endpoint)
+#    - Port 9095 for gRPC
+#    - Port 7946 for internal memberlist communication
+# 3. Configure Alloy to push metrics to: http://10.0.206.10:9009/api/v1/push
+#
+# Deploy:
+#   docker-compose -f docker-compose.yml up -d
+#
+# Verify:
+#   docker logs -f mimir-orc01
+#   curl http://localhost:9009/ready
+#   curl http://localhost:9009/metrics
+#
+# Query metrics:
+#   curl -X POST http://localhost:9009/prometheus/api/v1/query \
+#     -d 'query=up'
+# =============================================================================
