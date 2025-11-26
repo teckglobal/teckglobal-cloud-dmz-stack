@@ -43,7 +43,7 @@ blocks_storage:
 
 # Compactor configuration
 compactor:
-  data_dir: /data/mimir/compactor
+  data_dir: /data/mimir-compactor
   compaction_interval: 30m
   deletion_delay: 2h
 
@@ -78,11 +78,11 @@ limits:
 # Ruler configuration (for recording rules and alerts)
 ruler:
   enable_api: true
-  rule_path: /data/mimir/rules
+  rule_path: /data/mimir-ruler
 
 # Alertmanager configuration
 alertmanager:
-  data_dir: /data/mimir/alertmanager
+  data_dir: /data/mimir-alertmanager
   enable_api: true
   external_url: http://10.0.206.10:9009/alertmanager
 
