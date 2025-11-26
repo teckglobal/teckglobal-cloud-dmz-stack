@@ -110,15 +110,10 @@ loki.source.syslog "openwrt" {
 }
 
 loki.process "openwrt" {
-  // Parse firewall log format using logfmt
-  stage.logfmt {
-    mapping = {
-      src_ip    = "SRC",
-      dest_ip   = "DST",
-      proto     = "PROTO",
-      dest_port = "DPT",
-      src_port  = "SPT",
-    }
+  // Parse OpenWrt firewall log format using regex
+  // Format: "DROP IN=eth0 OUT= SRC=x.x.x.x DST=y.y.y.y PROTO=TCP SPT=xxx DPT=xxx"
+  stage.regex {
+    expression = "(?P<action>DROP|REJECT|ACCEPT)?.*?IN=(?P<in_interface>\\S*).*?OUT=(?P<out_interface>\\S*).*?SRC=(?P<src_ip>[0-9\\.]+).*?DST=(?P<dest_ip>[0-9\\.]+).*?PROTO=(?P<proto>\\S+)(?:.*?SPT=(?P<src_port>\\d+))?(?:.*?DPT=(?P<dest_port>\\d+))?"
   }
 
   // GeoIP enrichment for source IP
@@ -131,7 +126,7 @@ loki.process "openwrt" {
   // CRITICAL: DON'T add high-cardinality fields as labels!
   // GeoIP fields (geoip_country_name, geoip_city_name, etc.) are added to log content
   // Query them with LogQL:
-  // {job="openwrt_syslog"} | logfmt | geoip_country_name="China"
+  // {job="openwrt_syslog"} | regexp | geoip_country_name="China"
 
   stage.static_labels {
     values = {
@@ -163,14 +158,10 @@ loki.source.syslog "oraclewrt" {
 }
 
 loki.process "oraclewrt" {
-  stage.logfmt {
-    mapping = {
-      src_ip    = "SRC",
-      dest_ip   = "DST",
-      proto     = "PROTO",
-      dest_port = "DPT",
-      src_port  = "SPT",
-    }
+  // First, extract the firewall log from syslog message field
+  // OpenWrt firewall logs are in the format: "DROP IN=eth0 OUT= SRC=x.x.x.x DST=y.y.y.y PROTO=TCP SPT=xxx DPT=xxx"
+  stage.regex {
+    expression = "(?P<action>DROP|REJECT|ACCEPT)?.*?IN=(?P<in_interface>\\S*).*?OUT=(?P<out_interface>\\S*).*?SRC=(?P<src_ip>[0-9\\.]+).*?DST=(?P<dest_ip>[0-9\\.]+).*?PROTO=(?P<proto>\\S+)(?:.*?SPT=(?P<src_port>\\d+))?(?:.*?DPT=(?P<dest_port>\\d+))?"
   }
 
   // GeoIP enrichment for source IP
