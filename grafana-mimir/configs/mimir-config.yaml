@@ -39,7 +39,7 @@ blocks_storage:
   # TSDB configuration
   tsdb:
     dir: /data/mimir/tsdb
-    retention_period: 30d
+    retention_period: 720h  # 30 days (must be in hours)
 
 # Compactor configuration
 compactor:
@@ -50,14 +50,9 @@ compactor:
 # Ingester configuration
 ingester:
   ring:
-    # Use filesystem for ring in monolithic mode
     kvstore:
       store: memberlist
     replication_factor: 1
-
-  # WAL configuration
-  wal_enabled: true
-  wal_dir: /data/mimir/wal
 
 # Memberlist configuration (for service discovery in monolithic mode)
 memberlist:
@@ -78,7 +73,7 @@ limits:
 
   # Query limits
   max_query_parallelism: 32
-  max_query_length: 90d
+  max_query_lookback: 2160h  # 90 days (must be in hours)
 
 # Ruler configuration (for recording rules and alerts)
 ruler:
@@ -107,20 +102,13 @@ store_gateway:
     kvstore:
       store: memberlist
 
-# Query frontend configuration
-query_frontend:
+# Frontend configuration
+frontend:
   # Enable query splitting for better performance
-  split_queries_by_interval: 24h
-
-  # Results cache configuration
-  results_cache:
-    cache:
-      embedded_cache:
-        enabled: true
-        max_size_mb: 512
-        ttl: 24h
+  parallelize_shardable_queries: true
+  log_queries_longer_than: 10s
 
 # Querier configuration
 querier:
-  # Maximum number of queries per second
+  # Maximum number of concurrent queries
   max_concurrent: 20
