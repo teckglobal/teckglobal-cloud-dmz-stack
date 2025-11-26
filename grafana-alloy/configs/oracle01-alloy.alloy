@@ -99,8 +99,12 @@ loki.process "syslog" {
 
 loki.source.syslog "openwrt" {
   listener {
-    address = "0.0.0.0:1515"
-    protocol = "tcp"  // TCP protocol for reliable syslog delivery
+    address                 = "0.0.0.0:1515"
+    protocol                = "tcp"
+    syslog_format           = "rfc5424"
+    max_message_length      = 16384  // 16KB for larger firewall logs
+    idle_timeout            = "300s" // 5 minutes
+    use_incoming_timestamp  = true   // Use router's timestamp
   }
   forward_to = [loki.process.openwrt.receiver]
 }
@@ -148,8 +152,12 @@ loki.process "openwrt" {
 
 loki.source.syslog "oraclewrt" {
   listener {
-    address = "0.0.0.0:1516"
-    protocol = "tcp"  // TCP protocol for reliable syslog delivery
+    address                 = "0.0.0.0:1516"
+    protocol                = "tcp"
+    syslog_format           = "rfc5424"
+    max_message_length      = 16384  // 16KB for larger firewall logs
+    idle_timeout            = "300s" // 5 minutes
+    use_incoming_timestamp  = true   // Use router's timestamp
   }
   forward_to = [loki.process.oraclewrt.receiver]
 }
