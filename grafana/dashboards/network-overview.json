@@ -452,7 +452,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "avg((1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) by (instance)) * 100)",
+          "expr": "avg((1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))) * 100)",
           "refId": "A"
         }
       ],
@@ -683,7 +683,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])) by (instance)) * 100",
+          "expr": "(1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))) * 100",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
