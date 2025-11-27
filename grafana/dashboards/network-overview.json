@@ -580,6 +580,14 @@
         }
       ],
       "title": "Global Attack Sources (GeoIP)",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        }
+      ],
       "type": "geomap"
     },
     {
@@ -1305,7 +1313,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Network Overview",
-  "uid": "8Nelm77hs",
+  "uid": "8Nelm77h8",
   "version": 2,
   "weekStart": ""
 }
