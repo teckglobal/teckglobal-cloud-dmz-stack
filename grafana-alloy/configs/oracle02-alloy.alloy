@@ -202,18 +202,40 @@ loki.source.file "suricata" {
 
 loki.process "suricata" {
   // Parse JSON log format (Suricata eve.json logs are already in JSON)
+  // Extract comprehensive fields for better visibility and analysis
   stage.json {
     expressions = {
+      // Core event fields
       event_type = "event_type",
+      timestamp  = "timestamp",
+      flow_id    = "flow_id",
+      in_iface   = "in_iface",
+
+      // Network layer
       proto      = "proto",
       src_ip     = "src_ip",
       dest_ip    = "dest_ip",
-      dest_port  = "dest_port",
       src_port   = "src_port",
-      signature  = "alert.signature",
+      dest_port  = "dest_port",
+
+      // Application layer detection
+      app_proto  = "app_proto",  // Detected protocol (HTTP, TLS, DNS, SSH, etc.)
+
+      // Alert fields (when event_type="alert")
+      signature    = "alert.signature",
       signature_id = "alert.signature_id",
-      category   = "alert.category",
-      severity   = "alert.severity",
+      category     = "alert.category",
+      severity     = "alert.severity",
+      action       = "alert.action",      // allow/block/drop
+
+      // Flow metadata (when event_type="flow")
+      flow_state   = "flow.state",        // established, closed, new, etc.
+      flow_reason  = "flow.reason",       // timeout, shutdown, etc.
+      flow_age     = "flow.age",          // duration of flow in seconds
+      bytes_toserver = "flow.bytes_toserver",
+      bytes_toclient = "flow.bytes_toclient",
+      pkts_toserver  = "flow.pkts_toserver",
+      pkts_toclient  = "flow.pkts_toclient",
     }
   }
 
@@ -226,12 +248,24 @@ loki.process "suricata" {
   }
 
   // Pack extracted fields (including GeoIP data) into JSON format in log content
-  // This embeds all Suricata alert data + GeoIP enrichment for querying
+  // This embeds all Suricata event data + GeoIP enrichment for querying
   stage.pack {
     labels = [
-      "src_ip", "dest_ip", "src_port", "dest_port",  // Network fields
-      "signature", "signature_id", "category", "severity",  // Alert fields
-      "geoip_country_name", "geoip_city_name",  // GeoIP fields
+      // Core event metadata
+      "timestamp", "flow_id", "in_iface", "app_proto",
+
+      // Network fields
+      "src_ip", "dest_ip", "src_port", "dest_port",
+
+      // Alert fields (for event_type="alert")
+      "signature", "signature_id", "category", "severity", "action",
+
+      // Flow metadata (for event_type="flow")
+      "flow_state", "flow_reason", "flow_age",
+      "bytes_toserver", "bytes_toclient", "pkts_toserver", "pkts_toclient",
+
+      // GeoIP enrichment
+      "geoip_country_name", "geoip_city_name",
       "geoip_location_latitude", "geoip_location_longitude",
       "geoip_country_code", "geoip_continent_name",
     ]
@@ -254,11 +288,22 @@ loki.process "suricata" {
   }
 
   // Now all fields are in JSON log content (not labels)
-  // Query them with LogQL:
+  // Query examples with LogQL:
+  //
+  // Alert queries:
   // {job="suricata", event_type="alert"} | json | src_ip="45.225.192.88"
-  // {job="suricata"} | json | signature=~".*SQL.*"
+  // {job="suricata", event_type="alert"} | json | signature=~".*SQL.*"
+  // {job="suricata", event_type="alert"} | json | severity="1" | geoip_country_name!=""
+  // {job="suricata", event_type="alert"} | json | category="Attempted Administrator Privilege Gain"
+  //
+  // Flow analysis:
+  // {job="suricata", event_type="flow"} | json | app_proto="http" | flow_state="established"
+  // {job="suricata", event_type="flow"} | json | bytes_toserver > 1000000  // Large uploads
+  // {job="suricata", event_type="flow"} | json | flow_reason="timeout" | flow_age > 300
+  //
+  // GeoIP queries:
   // {job="suricata"} | json | geoip_country_name="China"
-  // {job="suricata"} | json | severity="1" | geoip_country_name!=""
+  // {job="suricata"} | json | geoip_country_name!="" | line_format "{{.src_ip}} from {{.geoip_city_name}}, {{.geoip_country_name}}"
 
   forward_to = [loki.write.loki_central.receiver]
 }
