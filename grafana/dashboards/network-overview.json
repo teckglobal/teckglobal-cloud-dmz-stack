@@ -586,6 +586,22 @@
           "options": {
             "mode": "columns"
           }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "geoip_location_latitude"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "geoip_location_longitude"
+              }
+            ],
+            "fields": {}
+          }
         }
       ],
       "type": "geomap"
