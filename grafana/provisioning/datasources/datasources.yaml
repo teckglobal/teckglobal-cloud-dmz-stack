@@ -1,0 +1,26 @@
+apiVersion: 1
+
+datasources:
+  # Loki - Log Aggregation
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://10.0.206.10:3100
+    isDefault: false
+    editable: true
+    jsonData:
+      maxLines: 1000
+      timeout: 60
+
+  # Mimir - Prometheus Metrics Storage
+  - name: Mimir
+    type: prometheus
+    uid: mimir
+    access: proxy
+    url: http://10.0.206.10:9009/prometheus
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 30s
