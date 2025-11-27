@@ -1,4 +1,54 @@
 {
+  "__requires": [
+    {
+      "type": "panel",
+      "id": "geomap",
+      "name": "Geomap",
+      "version": ""
+    },
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "11.6.1"
+    },
+    {
+      "type": "datasource",
+      "id": "loki",
+      "name": "Loki",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "logs",
+      "name": "Logs",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -19,7 +69,24 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "icon": "external link",
+      "tags": [],
+      "targetBlank": true,
+      "title": "GitHub",
+      "type": "link",
+      "url": "https://github.com/teckglobal/teckglobal-cloud-dmz-stack"
+    },
+    {
+      "icon": "external link",
+      "tags": [],
+      "targetBlank": true,
+      "title": "Grafana Dashboard",
+      "type": "link",
+      "url": "https://grafana.com/grafana/dashboards/22847"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -86,7 +153,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "count(up{job=\"node_exporter\"} == 1)",
+          "expr": "count(count by (instance) (node_uname_info))",
           "refId": "A"
         }
       ],
@@ -1238,7 +1305,7 @@
   "timepicker": {},
   "timezone": "",
   "title": "Network Overview",
-  "uid": "teckglobal-network-overview",
+  "uid": "8Nelm77hs",
   "version": 2,
   "weekStart": ""
 }
