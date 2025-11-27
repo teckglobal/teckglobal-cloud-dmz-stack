@@ -470,7 +470,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "avg((1 - avg by (instance) (rate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[$__rate_interval]))) * 100)",
+          "expr": "avg(100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval]))))",
           "refId": "A"
         }
       ],
@@ -725,7 +725,7 @@
             "type": "prometheus",
             "uid": "${ds_prometheus}"
           },
-          "expr": "(1 - avg by (instance) (rate(node_cpu_seconds_total{job=\"node_exporter\",mode=\"idle\"}[$__rate_interval]))) * 100",
+          "expr": "100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -1345,9 +1345,9 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "browser",
   "title": "Network Overview",
   "uid": "8Nelm77h8",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
