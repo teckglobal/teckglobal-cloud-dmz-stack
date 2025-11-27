@@ -35,6 +35,53 @@ This stack introduces a **cloud DMZ pattern** using OpenWrt as a virtual router/
 
 ---
 
+## 📍 Current Status
+
+**Last Updated:** November 26, 2025
+**Production Stack:** Fully Operational ✅
+
+### Live Infrastructure
+
+| Server | IP | Role | Services |
+|--------|-----|------|----------|
+| **Oracle01** | 10.0.206.10 | Monitoring Hub | Grafana + Loki + Mimir + Alloy |
+| **Oracle02** | 10.0.206.20 | Application Server | Nginx + Suricata IDS + Alloy |
+| **OracleWrt** | 10.0.5.1 | Cloud DMZ Router | OpenWrt + WireGuard + Firewall |
+| **OpenWrt** | 10.0.100.1 | Local Router | OpenWrt + WireGuard + VPN |
+
+### Recent Achievements
+
+- ✅ **GeoIP Enrichment Operational** - All log sources now include geographic data (city, country, coordinates)
+- ✅ **Migrated to Grafana Alloy** - Unified agent replacing Promtail across all servers
+- ✅ **Low Cardinality Optimized** - Reduced from 10,000+ streams to ~20 streams
+- ✅ **Production Tested** - Monitoring 5 servers, 38+ containers, handling real traffic
+
+### Active Data Collection
+
+- **Firewall Logs:** 2 routers streaming syslog with GeoIP enrichment (ports 1515, 1516)
+- **Web Traffic:** Nginx access logs with visitor geolocation from 10+ websites
+- **Security Events:** Suricata IDS alerts with threat source mapping
+- **System Metrics:** CPU, memory, disk, network from all infrastructure
+- **Container Metrics:** Docker resource usage via cAdvisor
+
+### What's Working Right Now
+
+```
+Live Log Sources: 8 active streams
+├─ openwrt_syslog (local router)
+├─ oraclewrt_syslog (cloud router)
+├─ nginx_access (10+ websites)
+├─ nginx_error
+├─ suricata (IDS/IPS)
+├─ syslog (system logs)
+└─ system_logs
+
+Metrics Collection: 5 servers monitored
+└─ node_exporter, cAdvisor, collectd
+```
+
+---
+
 ## ✨ Features
 
 ### Network & Security
@@ -113,24 +160,28 @@ This stack introduces a **cloud DMZ pattern** using OpenWrt as a virtual router/
 
 **Logs:**
 ```
-OpenWrt → Promtail → Loki (syslog, firewall logs)
-Servers → Alloy    → Loki (app logs, system logs)
+OpenWrt Routers → Alloy (syslog:1515, syslog:1516) → Loki (firewall logs + GeoIP)
+Servers         → Alloy (file collection)          → Loki (app logs, system logs)
+Nginx           → Alloy (access/error logs)        → Loki (web traffic + GeoIP)
+Suricata        → Alloy (eve.json)                 → Loki (IDS alerts + GeoIP)
 ```
 
 **Metrics:**
 ```
-Servers       → Alloy         → Mimir
+Servers       → Alloy         → Mimir (via prometheus.remote_write)
 Docker        → cAdvisor      → Alloy → Mimir
-node_exporter → Prometheus    → Alloy → Mimir
+node_exporter → Alloy         → Mimir
+collectd      → Alloy         → Mimir (OpenWrt metrics)
 ```
 
-**Security Events:**
+**GeoIP Enrichment Pipeline:**
 ```
-Network Traffic → Suricata → Promtail → Loki
-                           ↓
-                     eve.json (JSON logs)
-                           ↓
-                  GeoIP + Threat Analysis
+Raw Log → stage.logfmt/json → stage.geoip → stage.pack → Loki
+                                    ↓             ↓
+                            GeoLite2-City    JSON Embed
+                            (MaxMind DB)     (queryable)
+
+Query: {job="..."} | json | geoip_country_name="China"
 ```
 
 ---
@@ -312,6 +363,76 @@ Query high-cardinality fields with LogQL:
 ```
 
 **Result:** 99% fewer streams, no more errors, faster queries!
+
+---
+
+## 🌍 GeoIP Query Examples
+
+All log sources (routers, nginx, Suricata) include GeoIP enrichment for IP addresses. Query geographic data using LogQL:
+
+### Firewall Logs (Routers)
+
+```logql
+# All firewall drops from China
+{job="oraclewrt_syslog"} | json | geoip_country_name="China"
+
+# Traffic from specific city
+{job="openwrt_syslog"} | json | geoip_city_name="Moscow"
+
+# Map attacks by country
+{job=~".*_syslog"} | json | geoip_country_name!=""
+  | line_format "{{.SRC}} from {{.geoip_city_name}}, {{.geoip_country_name}}"
+
+# SSH attacks from Asia
+{job=~".*_syslog"} | json | DPT="22" | geoip_continent_name="Asia"
+```
+
+### Web Traffic (Nginx)
+
+```logql
+# Visitors from United States
+{job="nginx_access"} | json | geoip_country_name="United States"
+
+# 404 errors by country
+{job="nginx_access"} | json | status="404" | geoip_country_name!=""
+
+# API requests from Europe
+{job="nginx_access", website="api.example.com"}
+  | json | geoip_continent_name="Europe"
+
+# Map visitor locations
+{job="nginx_access"} | json
+  | line_format "{{.remote_addr}} - {{.geoip_city_name}}, {{.geoip_country_name}}"
+```
+
+### Security Events (Suricata IDS)
+
+```logql
+# Critical alerts from foreign countries
+{job="suricata", event_type="alert"}
+  | json | severity="1" | geoip_country_name!="United States"
+
+# SQL injection attempts by origin
+{job="suricata"} | json | signature=~".*SQL.*"
+  | geoip_country_name!=""
+
+# Malware callbacks mapped
+{job="suricata"} | json | category="Malware"
+  | line_format "{{.dest_ip}} → {{.geoip_city_name}}, {{.geoip_country_name}}"
+
+# DDoS sources by coordinates
+{job="suricata", event_type="flow"} | json | geoip_location_latitude!=""
+```
+
+### Available GeoIP Fields
+
+All enriched logs include these queryable fields:
+- `geoip_country_name` - "United States", "China", "Brazil"
+- `geoip_country_code` - "US", "CN", "BR"
+- `geoip_city_name` - "New York", "Tokyo", "London"
+- `geoip_continent_name` - "North America", "Asia", "Europe"
+- `geoip_location_latitude` - "40.7128"
+- `geoip_location_longitude` - "-74.0060"
 
 ---
 
