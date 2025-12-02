@@ -32,6 +32,34 @@ prometheus.remote_write "mimir_central" {
 // =============================================================================
 
 // -----------------------------------------------------------------------------
+// System Logs Collection
+// -----------------------------------------------------------------------------
+local.file_match "system_logs" {
+  path_targets = [
+    {
+      __path__ = "/var/log/*.log",
+      job      = "system_logs",
+      host     = "oracle02",
+    },
+  ]
+}
+
+loki.source.file "system_logs" {
+  targets    = local.file_match.system_logs.targets
+  forward_to = [loki.process.system_logs.receiver]
+}
+
+loki.process "system_logs" {
+  stage.static_labels {
+    values = {
+      job  = "system_logs",
+      host = "oracle02",
+    }
+  }
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
 // Syslog Collection
 // -----------------------------------------------------------------------------
 local.file_match "syslog" {
@@ -309,12 +337,149 @@ loki.process "suricata" {
 }
 
 // =============================================================================
+// SURICATA ADDITIONAL LOGS - ORACLE02
+// =============================================================================
+// Note: eve.json is already collected above with full GeoIP enrichment
+// These are supplementary logs for alerts, stats, and troubleshooting
+
+// -----------------------------------------------------------------------------
+// Suricata Fast Log (Alert Summary with GeoIP)
+// -----------------------------------------------------------------------------
+// Fast log format: timestamp [**] [gid:sid:rev] signature [**] [class] [priority] {proto} src_ip:port -> dst_ip:port
+// This is a human-readable alert summary - extract IPs and add GeoIP for quick dashboards
+
+local.file_match "suricata_fast" {
+  path_targets = [
+    {
+      __path__ = "/var/log/suricata/fast.log",
+      job      = "suricata_fast",
+      host     = "oracle02",
+    },
+  ]
+}
+
+loki.source.file "suricata_fast" {
+  targets    = local.file_match.suricata_fast.targets
+  forward_to = [loki.process.suricata_fast.receiver]
+}
+
+loki.process "suricata_fast" {
+  // Parse fast.log format to extract IPs, signature, classification
+  stage.regex {
+    expression = "^(?P<timestamp>[^\\[]+)\\s+\\[\\*\\*\\]\\s+\\[(?P<gid>\\d+):(?P<sid>\\d+):(?P<rev>\\d+)\\]\\s+(?P<signature>[^\\[]+)\\s+\\[\\*\\*\\]\\s+\\[Classification:\\s+(?P<classification>[^\\]]+)\\]\\s+\\[Priority:\\s+(?P<priority>\\d+)\\]\\s+\\{(?P<proto>\\w+)\\}\\s+(?P<src_ip>[\\d\\.]+):(?P<src_port>\\d+)\\s+->\\s+(?P<dst_ip>[\\d\\.]+):(?P<dst_port>\\d+)"
+  }
+
+  // GeoIP enrichment for source IP
+  stage.geoip {
+    db      = "/geoip/GeoLite2-City.mmdb"
+    source  = "src_ip"
+    db_type = "city"
+  }
+
+  // Pack all extracted fields into JSON
+  stage.pack {
+    labels = [
+      "timestamp", "gid", "sid", "rev", "signature", "classification", "priority",
+      "proto", "src_ip", "src_port", "dst_ip", "dst_port",
+      "geoip_country_name", "geoip_city_name",
+      "geoip_location_latitude", "geoip_location_longitude",
+      "geoip_country_code", "geoip_continent_name",
+    ]
+    ingest_timestamp = false
+  }
+
+  stage.static_labels {
+    values = {
+      job  = "suricata_fast",
+      host = "oracle02",
+    }
+  }
+
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Suricata Stats Log (Performance Metrics)
+// -----------------------------------------------------------------------------
+// Contains engine statistics: capture.kernel_packets, decoder.tcp, etc.
+// Useful for monitoring Suricata performance and capacity planning
+
+local.file_match "suricata_stats" {
+  path_targets = [
+    {
+      __path__ = "/var/log/suricata/stats.log",
+      job      = "suricata_stats",
+      host     = "oracle02",
+    },
+  ]
+}
+
+loki.source.file "suricata_stats" {
+  targets    = local.file_match.suricata_stats.targets
+  forward_to = [loki.process.suricata_stats.receiver]
+}
+
+loki.process "suricata_stats" {
+  stage.static_labels {
+    values = {
+      job  = "suricata_stats",
+      host = "oracle02",
+    }
+  }
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Suricata Daemon Log (Operational Logs)
+// -----------------------------------------------------------------------------
+// Suricata startup, config, errors - useful for troubleshooting IDS issues
+
+local.file_match "suricata_daemon" {
+  path_targets = [
+    {
+      __path__ = "/var/log/suricata/suricata.log",
+      job      = "suricata_daemon",
+      host     = "oracle02",
+    },
+  ]
+}
+
+loki.source.file "suricata_daemon" {
+  targets    = local.file_match.suricata_daemon.targets
+  forward_to = [loki.process.suricata_daemon.receiver]
+}
+
+loki.process "suricata_daemon" {
+  stage.static_labels {
+    values = {
+      job  = "suricata_daemon",
+      host = "oracle02",
+    }
+  }
+  forward_to = [loki.write.loki_central.receiver]
+}
+
+// Note: http-data.log and tcp-data.log are NOT collected
+// Reason: Extremely large files (GB), raw packet data, not useful for log analysis
+// All HTTP/TCP metadata is already in eve.json
+
+// =============================================================================
 // METRICS COLLECTION - ORACLE02
 // =============================================================================
-// Currently, Oracle01's Alloy scrapes Oracle02's metrics remotely.
-// If you want local collection + forwarding, uncomment below:
 
-/*
+// -----------------------------------------------------------------------------
+// Docker Swarm Metrics
+// -----------------------------------------------------------------------------
+prometheus.scrape "docker_swarm" {
+  targets = [
+    {"__address__" = "10.0.206.20:9323", "instance" = "orc02swarm"},
+  ]
+  forward_to = [prometheus.remote_write.mimir_central.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// Node Exporter Metrics (System Metrics)
+// -----------------------------------------------------------------------------
 prometheus.scrape "node_exporter" {
   targets = [
     {"__address__" = "10.0.206.20:9100", "instance" = "oracle02"},
@@ -322,10 +487,12 @@ prometheus.scrape "node_exporter" {
   forward_to = [prometheus.remote_write.mimir_central.receiver]
 }
 
+// -----------------------------------------------------------------------------
+// cAdvisor Metrics (Container Metrics)
+// -----------------------------------------------------------------------------
 prometheus.scrape "cadvisor" {
   targets = [
     {"__address__" = "10.0.206.20:9200", "instance" = "oracle02"},
   ]
   forward_to = [prometheus.remote_write.mimir_central.receiver]
 }
-*/

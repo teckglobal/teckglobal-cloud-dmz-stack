@@ -9,9 +9,7 @@
 auth_enabled: false
 
 server:
-  http_listen_address: 0.0.0.0
   http_listen_port: 3100
-  grpc_listen_address: 0.0.0.0
   grpc_listen_port: 9095
   log_level: info
 
@@ -165,8 +163,8 @@ ingester:
 # RUNTIME CONFIGURATION
 # =============================================================================
 
-runtime_config:
-  file: /etc/loki/runtime.yaml           # Optional runtime config
+#runtime_config:
+#  file: /etc/loki/runtime.yaml           # Optional runtime config
 
 # =============================================================================
 # DEPLOYMENT NOTES

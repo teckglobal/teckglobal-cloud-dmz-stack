@@ -21,7 +21,7 @@ services:
       - alloy-data:/var/lib/alloy/data
 
       # GeoIP database for IP geolocation
-      - /opt/geoip/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
+      - /usr/share/GeoIP/GeoLite2-City.mmdb:/geoip/GeoLite2-City.mmdb:ro
 
       # Docker socket for service discovery (optional but recommended)
       - /var/run/docker.sock:/var/run/docker.sock:ro

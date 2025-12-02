@@ -32,7 +32,7 @@ prometheus.remote_write "mimir" {
 }
 
 // =============================================================================
-// LOG COLLECTION
+// LOG COLLECTION ORACLE01
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -246,7 +246,7 @@ loki.process "oraclewrt" {
 }
 
 // =============================================================================
-// METRICS COLLECTION
+// METRICS COLLECTION - ORACLE01
 // =============================================================================
 
 // -----------------------------------------------------------------------------
@@ -256,7 +256,6 @@ prometheus.scrape "docker_swarm" {
   targets = [
     {"__address__" = "10.48.1.15:9323",  "instance" = "teck01swarm"},
     {"__address__" = "10.0.206.10:9323", "instance" = "orc01swarm"},
-    {"__address__" = "10.0.206.20:9323", "instance" = "orc02swarm"},
   ]
   forward_to = [prometheus.remote_write.mimir.receiver]
 }
@@ -269,7 +268,6 @@ prometheus.scrape "node_exporter" {
     {"__address__" = "10.0.5.1:9100",    "instance" = "oraclewrt"},
     {"__address__" = "10.0.100.1:9100",  "instance" = "openwrt"},
     {"__address__" = "10.0.206.10:9100", "instance" = "oracle01"},
-    {"__address__" = "10.0.206.20:9100", "instance" = "oracle02"},
     {"__address__" = "10.48.1.15:9100",  "instance" = "tecklord01"},
   ]
   forward_to = [prometheus.remote_write.mimir.receiver]
@@ -281,7 +279,6 @@ prometheus.scrape "node_exporter" {
 prometheus.scrape "cadvisor" {
   targets = [
     {"__address__" = "10.0.206.10:9200", "instance" = "oracle01"},
-    {"__address__" = "10.0.206.20:9200", "instance" = "oracle02"},
     {"__address__" = "10.48.1.15:9200",  "instance" = "tecklord01"},
   ]
   forward_to = [prometheus.remote_write.mimir.receiver]
