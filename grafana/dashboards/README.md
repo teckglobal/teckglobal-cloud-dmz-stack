@@ -4,10 +4,111 @@ Pre-built dashboards for the TeckGlobal Cloud DMZ Stack monitoring infrastructur
 
 ## Available Dashboards
 
+### NGINX Web Analytics
+
+**File:** [nginx-web-analytics.json](nginx-web-analytics.json)
+**UID:** `nginx-web-analytics`
+**Datasource:** Loki
+
+Comprehensive NGINX web analytics with GeoIP mapping for all hosted websites.
+
+#### Features:
+- **Overview Stats** - Total requests, unique visitors, bandwidth, error rates
+- **GeoIP World Map** - Interactive map showing visitor locations
+- **Traffic Analysis** - Requests/sec, bandwidth over time, HTTP status codes
+- **Top Lists** - Pages, IPs, referers, user agents, websites
+- **Bot Analysis** - Bot vs human traffic, crawler activity over time
+- **Logs** - Error logs and 4xx/5xx request logs
+
+#### Variables:
+- `website` - Filter by website (multi-select, includes all sites)
+
+---
+
+### Redis HA - TeckGlobal
+
+**File:** [redis-ha-teckglobal.json](redis-ha-teckglobal.json)
+**UID:** `redis-ha-unified`
+**Datasource:** Redis (Streaming)
+
+Redis Sentinel HA cluster monitoring for master/replica topology.
+
+#### Features:
+- **Cluster Status** - Connected clients, used memory, commands/sec
+- **Replication** - Master/replica status, replication lag
+- **Memory Analysis** - Memory usage, fragmentation ratio, evicted keys
+- **Performance** - Hit rate, keyspace stats, slow log
+
+---
+
+### Suricata IDS - Oracle02 Web Security
+
+**File:** [suricata-ids-oracle02.json](suricata-ids-oracle02.json)
+**UID:** `suricata-ids-unified`
+**Datasource:** Loki
+
+Suricata IDS monitoring for web server security on oracle02.
+
+#### Features:
+- **Alert Overview** - Total alerts, severity breakdown, top signatures
+- **Geographic Analysis** - Attack source countries and cities
+- **Traffic Analysis** - Protocol distribution, flow statistics
+- **Alert Logs** - Real-time alert viewer with filtering
+
+---
+
+### Claude Code Analytics
+
+**File:** [claude-code-analytics.json](claude-code-analytics.json)
+**UID:** `claude-code-dashboard`
+**Datasource:** MySQL (teckglobal_cloud_dmz)
+
+Tracks Claude Code AI assistant usage and session metrics.
+
+#### Features:
+- **Session Stats** - Active sessions, work items completed
+- **Infrastructure View** - Servers and services being managed
+- **Activity Timeline** - Recent work items and configurations
+
+---
+
+### OpenWRT Appliance
+
+**File:** [openwrt-appliance.json](openwrt-appliance.json)
+**UID:** `C_W3up8nk`
+**Datasource:** Prometheus
+
+Local gateway router monitoring (10.0.100.1).
+
+#### Features:
+- **System Stats** - CPU, memory, load average, uptime
+- **Network Interfaces** - Traffic in/out, packet rates, errors
+- **WireGuard VPN** - Peer status, bandwidth usage
+- **Firewall Stats** - Connection tracking, NAT statistics
+
+---
+
+### OracleWRT Appliance
+
+**File:** [oraclewrt-appliance.json](oraclewrt-appliance.json)
+**UID:** `ddm76z3gucni8f`
+**Datasource:** Prometheus
+
+Cloud gateway router monitoring (10.0.5.1) - firewall between redside/greenside VCNs.
+
+#### Features:
+- **System Stats** - CPU, memory, load average, uptime
+- **Dual NIC Monitoring** - WAN (172.31.0.4) and LAN (10.0.206.4) interfaces
+- **WireGuard VPN** - Site-to-site tunnel status
+- **Firewall Stats** - Inter-VCN traffic, NAT translation
+
+---
+
 ### Network Overview
 
 **File:** [network-overview.json](network-overview.json)
-**UID:** `teckglobal-network-overview`
+**UID:** `8NelHlksd`
+**Datasource:** Loki, Prometheus (Mimir)
 
 Comprehensive overview dashboard for the entire infrastructure with balanced visual and technical details.
 
@@ -151,15 +252,17 @@ curl "http://10.0.206.10:9009/prometheus/api/v1/query?query=up"
 
 ---
 
-## Future Dashboards
+## Datasource Configuration
 
-Planned dashboards for this stack:
+Before importing dashboards, ensure these datasources are configured in Grafana:
 
-- **Suricata Security Dashboard** - IDS/IPS alerts, threat analysis, attack sources map
-- **Web Traffic Analysis** - Nginx metrics, visitor geography, response times
-- **Container Monitoring** - Docker resource usage, container health, restart counts
-- **Router Performance** - OpenWrt metrics, WireGuard VPN stats, interface traffic
+| Datasource | Type | UID | URL |
+|------------|------|-----|-----|
+| Loki | loki | `loki` | http://loki:3100 |
+| Prometheus/Mimir | prometheus | `mimir` | http://mimir:9009/prometheus |
+| Redis | redis | `redis-datasource` | redis://redis-master:6379 |
+| MySQL | mysql | `mysql-datasource` | 10.48.1.15:3306 |
 
 ---
 
-**Built with ❤️ by TeckGlobal** | [GitHub](https://github.com/teckglobal/teckglobal-cloud-dmz-stack)
+**Built for TeckGlobal Cloud DMZ Stack** | [GitHub](https://github.com/teckglobal/teckglobal-cloud-dmz-stack)

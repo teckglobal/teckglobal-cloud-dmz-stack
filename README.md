@@ -37,7 +37,7 @@ This stack introduces a **cloud DMZ pattern** using OpenWrt as a virtual router/
 
 ## 📍 Current Status
 
-**Last Updated:** November 26, 2025
+**Last Updated:** December 21, 2025
 **Production Stack:** Fully Operational ✅
 
 ### Live Infrastructure
@@ -45,16 +45,18 @@ This stack introduces a **cloud DMZ pattern** using OpenWrt as a virtual router/
 | Server | IP | Role | Services |
 |--------|-----|------|----------|
 | **Oracle01** | 10.0.206.10 | Monitoring Hub | Grafana + Loki + Mimir + Alloy |
-| **Oracle02** | 10.0.206.20 | Application Server | Nginx + Suricata IDS + Alloy |
+| **Oracle02** | 10.0.206.20 | Application Server | Nginx + Redis HA + Suricata IDS |
 | **OracleWrt** | 10.0.5.1 | Cloud DMZ Router | OpenWrt + WireGuard + Firewall |
-| **OpenWrt** | 10.0.100.1 | Local Router | OpenWrt + WireGuard + VPN |
+| **OpenWrt** | 10.0.100.1 | Local Gateway | OpenWrt + WireGuard + VPN |
+| **Tecklord01** | 10.48.1.15 | Dev Server | Docker Swarm + MariaDB |
 
 ### Recent Achievements
 
-- ✅ **GeoIP Enrichment Operational** - All log sources now include geographic data (city, country, coordinates)
-- ✅ **Migrated to Grafana Alloy** - Unified agent replacing Promtail across all servers
-- ✅ **Low Cardinality Optimized** - Reduced from 10,000+ streams to ~20 streams
-- ✅ **Production Tested** - Monitoring 5 servers, 38+ containers, handling real traffic
+- ✅ **7 Production Dashboards** - NGINX analytics, Redis HA, Suricata IDS, Router monitoring
+- ✅ **GeoIP World Maps** - Visitor geolocation on all web and security dashboards
+- ✅ **Redis HA Cluster** - Sentinel-managed master/replica with automatic failover
+- ✅ **Docker DNS Sync** - Automatic container DNS registration across Swarm cluster
+- ✅ **Migrated to Grafana Alloy** - Unified agent replacing Promtail
 
 ### Active Data Collection
 
@@ -190,39 +192,46 @@ Query: {job="..."} | json | geoip_country_name="China"
 
 ### Prerequisites
 
-- Docker & Docker Compose
-- Cloud VM with:
-  - 4GB+ RAM (monitoring hub)
-  - 2GB+ RAM (application servers)
-  - Ubuntu 22.04+ or Debian 11+
-- (Optional) OpenWrt VM for DMZ gateway
+- Docker & Docker Compose (or Docker Swarm for HA)
+- Linux server with 4GB+ RAM (Ubuntu 22.04+ or Debian 11+)
+- (Optional) OpenWrt router for DMZ gateway
 
-### Single Server Deployment
+### 1. Clone and Deploy Monitoring Stack
 
 ```bash
 # Clone the repository
 git clone https://github.com/teckglobal/teckglobal-cloud-dmz-stack
-cd teckglobal-cloud-dmz-stack/examples/single-server
+cd teckglobal-cloud-dmz-stack
 
-# Copy and configure environment
-cp .env.example .env
-nano .env  # Edit your settings
+# Deploy Loki (log aggregation)
+cd grafana-loki && docker-compose up -d && cd ..
 
-# Deploy the stack
-docker-compose up -d
+# Deploy Mimir (metrics storage)
+cd grafana-mimir && docker-compose up -d && cd ..
 
-# Verify deployment
-docker-compose ps
+# Deploy Alloy (unified collection agent)
+cd grafana-alloy && docker-compose -f docker-compose-oracle01.yml up -d && cd ..
 ```
 
-**Access:**
-- Grafana: http://your-server:3000 (admin/admin)
-- Loki: http://your-server:3100
-- Alloy UI: http://your-server:12345
+### 2. Import Grafana Dashboards
 
-### Multi-Server Deployment
+Dashboards are located in `grafana/dashboards/`. Import via Grafana UI:
 
-See [examples/multi-server/README.md](examples/multi-server/README.md)
+1. Open Grafana: `http://your-server:3000`
+2. Go to **Dashboards** → **Import**
+3. Upload JSON file or paste dashboard ID
+4. Select your datasources (Loki, Prometheus/Mimir)
+
+See [grafana/dashboards/README.md](grafana/dashboards/README.md) for full dashboard documentation.
+
+### 3. Access Points
+
+| Service | URL | Default Login |
+|---------|-----|---------------|
+| Grafana | http://your-server:3000 | admin/admin |
+| Loki API | http://your-server:3100 | - |
+| Alloy UI | http://your-server:12345 | - |
+| Mimir API | http://your-server:9009 | - |
 
 ---
 
@@ -282,45 +291,41 @@ Monitor nginx access/error logs, track request rates, analyze status codes, and 
 
 ### Getting Started
 - [Installation Guide](docs/INSTALLATION.md)
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
-
-### OpenWrt DMZ
-- [OpenWrt VM Setup](docs/openwrt/OPENWRT-VM-SETUP.md)
-- [Cloud Provider Guides](docs/openwrt/CLOUD-PROVIDERS.md)
-- [WireGuard Configuration](docs/openwrt/WIREGUARD-SETUP.md)
-- [Firewall Best Practices](docs/openwrt/FIREWALL-CONFIG.md)
-
-### Monitoring
-- [Grafana Alloy Deployment Guide](grafana-alloy/README.md)
 - [GeoIP Setup Guide](docs/geoip-setup.md) - IP geolocation for threat intelligence
-- [Suricata IDS Setup](suricata/README.md) - Network intrusion detection
-- [Migration from Promtail to Alloy](docs/monitoring/MIGRATION-FROM-PROMTAIL.md)
-- [Loki Cardinality Guide](docs/monitoring/CARDINALITY-GUIDE.md)
-- [Dashboard Guide](docs/monitoring/DASHBOARDS.md)
-- [Alert Configuration](docs/monitoring/ALERTS.md)
 
-### Security
-- [Suricata IDS Setup](docs/security/SURICATA-SETUP.md)
-- [Security Hardening](docs/security/HARDENING.md)
-- [Threat Analysis](docs/security/THREAT-ANALYSIS.md)
+### Grafana Dashboards
 
-### Troubleshooting
-- [Common Issues](docs/TROUBLESHOOTING.md)
-- [Performance Tuning](docs/PERFORMANCE.md)
+Pre-built dashboards ready to import. See [grafana/dashboards/README.md](grafana/dashboards/README.md) for details.
+
+| Dashboard | Description | Datasource |
+|-----------|-------------|------------|
+| **NGINX Web Analytics** | Web traffic, GeoIP maps, visitor stats | Loki |
+| **Redis HA - TeckGlobal** | Sentinel cluster monitoring | Redis |
+| **Suricata IDS** | Security alerts, threat analysis | Loki |
+| **OpenWRT Appliance** | Local router metrics | Prometheus |
+| **OracleWRT Appliance** | Cloud gateway metrics | Prometheus |
+| **Claude Code Analytics** | AI assistant usage tracking | MySQL |
+| **Network Overview** | Infrastructure overview | Loki + Prometheus |
+
+### Component Guides
+- [Grafana Alloy](grafana-alloy/README.md) - Unified log/metric collection agent
+- [Grafana Loki](grafana-loki/) - Log aggregation and storage
+- [Grafana Mimir](grafana-mimir/README.md) - Long-term metrics storage
+- [Suricata IDS](suricata/README.md) - Network intrusion detection
+- [Redis HA Stack](stacks/REDIS-DEPLOYMENT-GUIDE.md) - Sentinel-managed Redis cluster
+- [Docker DNS Sync](docker-dns-sync/) - Automatic container DNS registration
 
 ---
 
-## ☁️ Cloud Provider Guides
+## ☁️ Tested Cloud Providers
 
-We provide step-by-step guides for deploying OpenWrt DMZ gateways on major cloud providers:
+This stack has been tested and verified on:
 
-- **[Oracle Cloud (OCI)](docs/cloud-providers/OCI.md)** - ✅ Tested & Verified
-- **[AWS](docs/cloud-providers/AWS.md)** - ✅ Tested & Verified
-- **[Azure](docs/cloud-providers/AZURE.md)** - 🚧 In Progress
-- **[Google Cloud (GCP)](docs/cloud-providers/GCP.md)** - 🚧 In Progress
-- **[DigitalOcean](docs/cloud-providers/DIGITALOCEAN.md)** - 📋 Planned
-- **[Linode](docs/cloud-providers/LINODE.md)** - 📋 Planned
+- **Oracle Cloud (OCI)** - ✅ Production deployment
+- **AWS** - ✅ Tested
+- **Home Lab / Bare Metal** - ✅ Tested
+
+OpenWrt can run as a VM on any cloud provider that supports custom images or nested virtualization.
 
 ---
 

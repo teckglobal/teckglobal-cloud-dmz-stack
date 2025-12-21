@@ -32,6 +32,13 @@ secrets/
 *.pem
 *.crt
 !example.crt
+.mcp.json
+
+# Claude
+.claude/
+
+# Archive (old/unused files)
+archive/
 
 # Grafana
 grafana/data/

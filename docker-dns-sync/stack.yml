@@ -1,0 +1,48 @@
+version: "3.8"
+
+# Deploy: docker stack deploy -c stack.yml dns-sync
+
+services:
+  docker-dns-sync:
+    image: docker:cli
+    hostname: "{{.Node.Hostname}}"
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache bash openssh-client coreutils >/dev/null 2>&1
+        exec /dns-sync.sh watch
+    environment:
+      - OPENWRT_HOSTS=10.0.5.1 10.0.100.1
+      - OPENWRT_USER=root
+      - DNS_DOMAIN=teck-global.lan
+      - SYNC_INTERVAL=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    configs:
+      - source: dns_sync_script
+        target: /dns-sync.sh
+        mode: 0755
+    secrets:
+      - source: dns_sync_ssh_key
+        target: /root/.ssh/id_rsa
+        mode: 0600
+    networks:
+      - dnsmasq_network
+    deploy:
+      mode: global
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+networks:
+  dnsmasq_network:
+    external: true
+
+configs:
+  dns_sync_script:
+    file: ./docker-dns-sync.sh
+
+secrets:
+  dns_sync_ssh_key:
+    external: true

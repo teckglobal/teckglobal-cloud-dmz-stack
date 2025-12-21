@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  docker-dns-sync:
+    build: .
+    image: teckglobal/docker-dns-sync:latest
+    container_name: docker-dns-sync
+    restart: unless-stopped
+    environment:
+      # Space-separated list of routers to sync to (independent, no dependencies)
+      - OPENWRT_HOSTS=10.0.5.1 10.0.100.1
+      - OPENWRT_USER=root
+      - DNS_DOMAIN=teck-global.lan
+      - SYNC_INTERVAL=5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ~/.ssh/teckglobal-master:/root/.ssh/id_rsa:ro

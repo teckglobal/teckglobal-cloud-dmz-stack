@@ -1,0 +1,397 @@
+version: "3.8"
+
+# Redis Stack High Availability with Sentinel
+# TeckGlobal Docker Swarm - Recommended Configuration
+#
+# This setup provides:
+#   - Full Redis Stack modules (RedisSearch, RedisJSON, RedisBloom, etc.)
+#   - Automatic failover via Sentinel
+#   - 1 Master + 2 Replicas across 3 nodes
+#   - 3 Sentinel instances for quorum
+#
+# Deploy:
+#   1. docker secret create redis_password - <<< "YourSecurePassword"
+#   2. docker stack deploy -c redis-stack-ha-stack.yml redis-ha
+
+services:
+  # =============================================================
+  # REDIS MASTER - Runs on oracle02 (most RAM, web hosting node)
+  # =============================================================
+  redis-master:
+    image: redis/redis-stack-server:latest
+    hostname: redis-master
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 6379
+        published: 6379
+        mode: host
+    volumes:
+      - redis-master-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        export REDIS_ARGS="--requirepass $$REDIS_PASSWORD --masterauth $$REDIS_PASSWORD --maxmemory 1gb --maxmemory-policy allkeys-lru --appendonly yes --appendfsync everysec"
+        exec /entrypoint.sh
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == oracle02.teck-global.com
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # =============================================================
+  # REDIS REPLICA 1 - Runs on oracle01 (monitoring node)
+  # =============================================================
+  redis-replica-1:
+    image: redis/redis-stack-server:latest
+    hostname: redis-replica-1
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 6379
+        published: 6380
+        mode: host
+    volumes:
+      - redis-replica-1-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        export REDIS_ARGS="--requirepass $$REDIS_PASSWORD --masterauth $$REDIS_PASSWORD --replicaof redis-master 6379 --replica-read-only yes --maxmemory 768mb --maxmemory-policy allkeys-lru --appendonly yes"
+        exec /entrypoint.sh
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == oracle01.teck-global.com
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - redis-master
+
+  # =============================================================
+  # REDIS REPLICA 2 - Runs on tecklord01 (development node)
+  # =============================================================
+  redis-replica-2:
+    image: redis/redis-stack-server:latest
+    hostname: redis-replica-2
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 6379
+        published: 6381
+        mode: host
+    volumes:
+      - redis-replica-2-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        export REDIS_ARGS="--requirepass $$REDIS_PASSWORD --masterauth $$REDIS_PASSWORD --replicaof redis-master 6379 --replica-read-only yes --maxmemory 384mb --maxmemory-policy allkeys-lru --appendonly yes"
+        exec /entrypoint.sh
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == tecklord01.teck-global.com
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    depends_on:
+      - redis-master
+
+  # =============================================================
+  # SENTINEL 1 - Runs on oracle01
+  # =============================================================
+  sentinel-1:
+    image: redis:latest
+    hostname: sentinel-1
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 26379
+        published: 26379
+        mode: host
+    volumes:
+      - sentinel-1-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    configs:
+      - source: sentinel_conf
+        target: /etc/redis/sentinel-template.conf
+        mode: 0644
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        cp /etc/redis/sentinel-template.conf /data/sentinel.conf
+        sed -i "s/__REDIS_PASSWORD__/$$REDIS_PASSWORD/g" /data/sentinel.conf
+        exec redis-sentinel /data/sentinel.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == oracle01.teck-global.com
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+
+  # =============================================================
+  # SENTINEL 2 - Runs on oracle02
+  # =============================================================
+  sentinel-2:
+    image: redis:latest
+    hostname: sentinel-2
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 26379
+        published: 26380
+        mode: host
+    volumes:
+      - sentinel-2-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    configs:
+      - source: sentinel_conf
+        target: /etc/redis/sentinel-template.conf
+        mode: 0644
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        cp /etc/redis/sentinel-template.conf /data/sentinel.conf
+        sed -i "s/__REDIS_PASSWORD__/$$REDIS_PASSWORD/g" /data/sentinel.conf
+        exec redis-sentinel /data/sentinel.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == oracle02.teck-global.com
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+
+  # =============================================================
+  # SENTINEL 3 - Runs on tecklord01
+  # =============================================================
+  sentinel-3:
+    image: redis:latest
+    hostname: sentinel-3
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 26379
+        published: 26381
+        mode: host
+    volumes:
+      - sentinel-3-data:/data
+    secrets:
+      - source: redis_password
+        target: /run/secrets/redis_password
+        mode: 0400
+    configs:
+      - source: sentinel_conf
+        target: /etc/redis/sentinel-template.conf
+        mode: 0644
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        REDIS_PASSWORD=$$(cat /run/secrets/redis_password)
+        cp /etc/redis/sentinel-template.conf /data/sentinel.conf
+        sed -i "s/__REDIS_PASSWORD__/$$REDIS_PASSWORD/g" /data/sentinel.conf
+        exec redis-sentinel /data/sentinel.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == tecklord01.teck-global.com
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "26379", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - redis-master
+      - redis-replica-1
+      - redis-replica-2
+
+  # =============================================================
+  # REDIS INSIGHT - Web-based Redis management UI
+  # =============================================================
+  redis-insight:
+    image: redis/redisinsight:latest
+    hostname: redis-insight
+    networks:
+      - redis-ha-net
+    ports:
+      - target: 5540
+        published: 5540
+        mode: host
+    volumes:
+      - redis-insight-data:/data
+    environment:
+      - RI_LOG_LEVEL=info
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == oracle01.teck-global.com
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# =============================================================
+# NETWORKS
+# =============================================================
+networks:
+  redis-ha-net:
+    external: true
+
+# =============================================================
+# VOLUMES
+# =============================================================
+volumes:
+  redis-master-data:
+    driver: local
+  redis-replica-1-data:
+    driver: local
+  redis-replica-2-data:
+    driver: local
+  sentinel-1-data:
+    driver: local
+  sentinel-2-data:
+    driver: local
+  sentinel-3-data:
+    driver: local
+  redis-insight-data:
+    driver: local
+
+# =============================================================
+# SECRETS
+# =============================================================
+secrets:
+  redis_password:
+    external: true
+
+# =============================================================
+# CONFIGS
+# =============================================================
+configs:
+  sentinel_conf:
+    external: true
