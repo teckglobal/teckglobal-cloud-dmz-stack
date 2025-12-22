@@ -115,47 +115,40 @@ Metrics Collection: 5 servers monitored
 
 ### Network Topology
 
+## Network Architecture Overview
+
 ```
-                                    Internet
-                                       │
-                                       ▼
-                            ┌──────────────────┐
-                            │   Cloud Provider │
-                            │   Public IP/VIP  │
-                            └────────┬─────────┘
-                                     │
-                         ┌───────────▼──────────┐
-                         │    OpenWrt Router    │
-                         │   (DMZ Gateway)      │
-                         │  ┌────────────────┐  │
-                         │  │ WireGuard VPN  │  │
-                         │  │ Suricata IDS   │  │
-                         │  │ Firewall/NAT   │  │
-                         │  │ DNS over TLS   │  │
-                         │  └────────────────┘  │
-                         └───────┬──────────────┘
-                                 │
-                    ┌────────────┼────────────┐
-                    │                         │
-         ┌──────────▼─────────┐    ┌─────────▼──────────┐
-         │   Monitoring Hub   │    │   Application      │
-         │   (Oracle01)       │    │   Server           │
-         │                    │    │   (Oracle02)       │
-         │  • Grafana         │    │                    │
-         │  • Loki            │    │  • Nginx           │
-         │  • Mimir           │    │  • Docker Apps     │
-         │  • Alloy           │    │  • Databases       │
-         │  • Prometheus      │    │  • Alloy Agent     │
-         └────────────────────┘    └────────────────────┘
-                    │
-         ┌──────────▼─────────┐
-         │   Remote Site      │
-         │   (Home/Office)    │
-         │                    │
-         │  • Local OpenWrt   │
-         │  • WireGuard VPN   │
-         │  • Local Servers   │
-         └────────────────────┘
+                                                   Point to Point
+                                                      MTU 1388
+                           INTERNET <============<VPN WIREGUARD TUNNEL>============> INTERNET
+                              │                                                         │
+                              ▼                                                         ▼
+                  ┌───────────▼─────────┐                                    ┌──────────▼──────────┐
+                  │    OCI - Gateway    │                                    │  Local Gateway      │
+                  │  WAN:201.xxx.xxx.xxx│ Static IP                          │  WAN: 97.xxx.xx.xxx │ Dynamic IP
+                  │  OpenWrt Router     │                                    │  OpenWrt Router     │
+                  │   (10.0.5.1 wg0 )   │                                    │  (10.0.100.1 wg0)   │
+                  └──────────┬──────────┘                                    └──────────┬──────────┘
+                             │                                                          │
+                             │                                                          │
+                             │                                                          │
+                     ┌───────▼────────┐                                        ┌────────▼────────┐
+                     │ Local Network  │                                        │                 │
+                     │ Lan            │                                 ┌──────▼─────────┐┌──────▼────────┐
+                     │ 10.0.206.0/24  │                                 │ Local Network  ││ Local Network │
+                     └────────────────┘                                 │     Secure     ││    Lan DEV    │
+                             │                                          │  10.48.1.0/24  ││192.168.10.0/23│
+                ┌────────────┴────────────┐                             └────────────────┘└───────────────┘
+                │                         │                                     │                │
+        ┌───────▼──────┐          ┌───────▼───────┐                             │                ┴────────────────┐
+        │   Ubuntu     │          │   Ubuntu      │                             │                                 │
+        │   oracle01   │          │   oracle02    │                     ┌───────▼──────┐                  ┌───────▼─────────┐
+        │  10.0.206.10 │          │  10.0.206.20  │                     │   Debian VM  │                  │   DEV  TEST     │
+        │  (10G RAM)   │          │  (12G RAM)    │                     │  tecklord01  │                  │    DEVIL01      │
+        └──────────────┘          └───────────────┘                     │  10.48.1.15  │                  │192.168.10.0/24  │
+                                                                        │  (4G RAM)    │                  │192.168.20.0/24  │
+                                                                        └──────────────┘                  └─────────────────┘
+                                                                     (VMware Fusion on Mac)               ( DEVS PLAYGROUND )
 ```
 
 ### Data Flow
