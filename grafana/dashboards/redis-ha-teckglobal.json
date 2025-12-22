@@ -437,7 +437,7 @@
         "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
           "fields": "",
           "values": false
@@ -449,7 +449,8 @@
       "pluginVersion": "11.5.0-80502",
       "targets": [
         {
-          "command": "dbsize",
+          "command": "info",
+          "section": "keyspace",
           "datasource": {
             "type": "redis-datasource",
             "uid": "df7rzcs7to3cwa"
@@ -2854,7 +2855,8 @@
             "mode": "fixed",
             "fixedColor": "yellow"
           },
-          "unit": "short"
+          "unit": "short",
+          "noValue": "0"
         }
       },
       "options": {
@@ -2878,13 +2880,39 @@
           "section": "keyspace",
           "refId": "A"
         }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "db0"
+            }
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "db0",
+            "format": "kvp",
+            "replace": true
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["keys"]
+            }
+          }
+        }
       ]
     },
     {
       "id": 41,
       "type": "stat",
       "title": "Replica Lag",
-      "description": "Replication lag in bytes",
+      "description": "Replication lag (from slave0)",
       "gridPos": {
         "x": 16,
         "y": 18,
@@ -2908,16 +2936,16 @@
                 "color": "green"
               },
               {
-                "value": 1000,
+                "value": 1,
                 "color": "yellow"
               },
               {
-                "value": 10000,
+                "value": 5,
                 "color": "red"
               }
             ]
           },
-          "unit": "bytes",
+          "unit": "none",
           "noValue": "0"
         }
       },
@@ -2941,6 +2969,32 @@
           "command": "info",
           "section": "replication",
           "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "pattern": "slave0"
+            }
+          }
+        },
+        {
+          "id": "extractFields",
+          "options": {
+            "source": "slave0",
+            "format": "kvp",
+            "replace": true
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["lag"]
+            }
+          }
         }
       ]
     },

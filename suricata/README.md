@@ -40,17 +40,17 @@ Suricata is a high-performance Network Intrusion Detection System (NIDS), Intrus
 
 ```
 ┌──────────────────────────────────┐
-│   Oracle02 (10.0.206.20)        │
-│                                   │
+│   Oracle02 (10.0.206.20)         │
+│                                  │
 │  ┌────────────────────────────┐  │
 │  │   Docker: suricata-orc02   │  │
 │  │   (Network packet capture) │  │
 │  └───────────┬────────────────┘  │
-│              │ Logs                │
-│              ▼                     │
-│  /var/log/suricata/eve.json       │
-│              │                     │
-│              ▼                     │
+│              │ Logs              │
+│              ▼                   │
+│  /var/log/suricata/eve.json      │
+│              │                   │
+│              ▼                   │
 │  ┌────────────────────────────┐  │
 │  │   Docker: alloy-orc02      │  │
 │  │   (Log collection)         │  │
@@ -59,14 +59,14 @@ Suricata is a high-performance Network Intrusion Detection System (NIDS), Intrus
                │ Sends to
                ▼
 ┌──────────────────────────────────┐
-│   Oracle01 (10.0.206.10)        │
-│                                   │
+│   Oracle01 (10.0.206.10)         │
+│                                  │
 │  ┌────────────────────────────┐  │
 │  │   Docker: loki-orc01       │  │
 │  │   (Log storage)            │  │
 │  └────────────────────────────┘  │
-│              │                     │
-│              ▼                     │
+│              │                   │
+│              ▼                   │
 │  ┌────────────────────────────┐  │
 │  │   Grafana                  │  │
 │  │   (Visualization & alerts) │  │

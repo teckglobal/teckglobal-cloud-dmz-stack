@@ -285,6 +285,22 @@ prometheus.scrape "cadvisor" {
 }
 
 // -----------------------------------------------------------------------------
+// Redis HA Metrics (Cluster Metrics)
+// -----------------------------------------------------------------------------
+// Password sourced from environment variable REDIS_PASSWORD
+prometheus.exporter.redis "redis_ha" {
+  redis_addr = "10.0.206.20:6379"
+  redis_password = env("REDIS_PASSWORD")
+}
+
+prometheus.scrape "redis_master" {
+  targets    = prometheus.exporter.redis.redis_ha.targets
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  job_name   = "redis"
+  scrape_interval = "15s"
+}
+
+// -----------------------------------------------------------------------------
 // Collectd Exporter Metrics (OpenWrt Collection)
 // -----------------------------------------------------------------------------
 prometheus.scrape "collectd_metrics" {
@@ -293,3 +309,21 @@ prometheus.scrape "collectd_metrics" {
   ]
   forward_to = [prometheus.remote_write.mimir.receiver]
 }
+
+// -----------------------------------------------------------------------------
+// Claude-Code TELEMETRY Metrics (Mac Mini Terminal)
+// -----------------------------------------------------------------------------
+prometheus.scrape "claude_code" {
+  targets = [
+    {"__address__" = "10.48.1.128:9464", "instance" = "god.mac-mini"},
+  ]
+  forward_to = [prometheus.remote_write.mimir.receiver]
+}
+
+// -----------------------------------------------------------------------------
+// dnsmasq Metrics - DISABLED
+// -----------------------------------------------------------------------------
+// OpenWRT dnsmasq is compiled with 'no-ID' flag which disables CHAOS TXT
+// queries for cache statistics. Only returns dnsmasq_leases=0 (useless).
+// DNS metrics are collected via collectd DNS plugin instead.
+// -----------------------------------------------------------------------------

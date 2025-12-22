@@ -496,3 +496,15 @@ prometheus.scrape "cadvisor" {
   ]
   forward_to = [prometheus.remote_write.mimir_central.receiver]
 }
+
+// -----------------------------------------------------------------------------
+// TeckPortal Metrics (TeckGlobal Website Dashboard)
+// -----------------------------------------------------------------------------
+prometheus.scrape "teckportal" {
+  targets = [
+    {"__address__" = "10.0.206.20:3001", "instance" = "teckportal"},
+  ]
+  forward_to  = [prometheus.remote_write.mimir_central.receiver]
+  metrics_path = "/api/metrics"
+  scrape_interval = "30s"
+}
