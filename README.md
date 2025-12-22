@@ -124,7 +124,7 @@ Metrics Collection: 5 servers monitored
                           │                                                         │
                           ▼                                                         ▼
               ┌───────────▼─────────┐                                    ┌──────────▼──────────┐
-              │    OCI - Gateway    │                                    │  Local Gateway      │
+              │    OCI - Gateway    │                                    │  Local Gateway      │ DDNS
               │  WAN:201.xxx.xxx.xxx│ Static IP                          │  WAN: 97.xxx.xx.xxx │ Dynamic IP
               │  OpenWrt Router     │                                    │  OpenWrt Router     │
               │   (10.0.5.1 wg0 )   │                                    │  (10.0.100.1 wg0)   │
@@ -144,10 +144,10 @@ Metrics Collection: 5 servers monitored
     │   Ubuntu     │          │   Ubuntu      │                             │                          │
     │   oracle01   │          │   oracle02    │                     ┌───────▼──────┐           ┌───────▼─────────┐
     │  10.0.206.10 │          │  10.0.206.20  │                     │   Debian VM  │           │   DEV  TEST     │
-    │  (10G RAM)   │          │  (12G RAM)    │                     │  tecklord01  │           │    DEVIL01      │
-    └──────────────┘          └───────────────┘                     │  10.48.1.15  │           │192.168.10.0/24  │
-                                                                    │  (4G RAM)    │           │192.168.20.0/24  │
-                                                                    └──────────────┘           └─────────────────┘
+    │  (10G RAM)   │          │  (12G RAM)    │                     │  tecklord01  │           │    DEVIL01      │128GB RAM
+    └──────────────┘          └───────────────┘                     │  10.48.1.15  │           │192.168.10.0/24  │64 Epyc
+                                                                    │  (4G RAM)    │           │192.168.20.0/24  │2 4790 TI 32GB
+                                                                    └──────────────┘           └─────────────────┘12 TB STORAGE
                                                                  (VMware Fusion on Mac)        ( DEVS PLAYGROUND )
 ```
 
